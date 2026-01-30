@@ -276,8 +276,52 @@ async function handleStatic(filePath, urlPath, stats, res, context, fileType) {
 }
 
 async function handleBinary(filePath, urlPath, stats, res, context) {
-  res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-  res.end('Binary handler - TODO');
+  const { createBinaryTemplate } = require('./templates/binary.js');
+  const { escapeHtml } = require('./utils.js');
+
+  // Check for download query parameter
+  const url = new URL(context.req.url, `http://${context.req.headers.host}`);
+  const shouldDownload = url.searchParams.get('download') === 'true';
+
+  if (shouldDownload) {
+    // Serve file for download
+    try {
+      const content = await fs.readFile(filePath);
+      const fileName = path.basename(filePath);
+
+      res.writeHead(200, {
+        'Content-Type': 'application/octet-stream',
+        'Content-Disposition': `attachment; filename="${fileName}"`,
+        'Content-Length': content.length
+      });
+      res.end(content);
+    } catch (err) {
+      res.writeHead(500, { 'Content-Type': 'text/plain' });
+      res.end(`Error reading file: ${err.message}`);
+    }
+  } else {
+    // Show preview card with metadata
+    try {
+      const fileName = path.basename(filePath);
+      const fileSize = stats.size;
+      const modified = stats.mtime;
+
+      const html = createBinaryTemplate({
+        fileName,
+        filePath,
+        fileSize,
+        modified,
+        urlPath,
+        escapeHtml
+      });
+
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+      res.end(html);
+    } catch (err) {
+      res.writeHead(500, { 'Content-Type': 'text/plain' });
+      res.end(`Error generating preview: ${err.message}`);
+    }
+  }
 }
 
 module.exports = {
