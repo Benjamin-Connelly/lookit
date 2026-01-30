@@ -103,7 +103,7 @@ function handleRequest(req, res) {
   const stat = fs.statSync(safePath);
 
   if (stat.isDirectory() || stat.isFile()) {
-    handleFile(safePath, urlPath, res, { md, args });
+    handleFile(safePath, urlPath, stat, res, { md, hljs, args, CWD, req });
   } else {
     res.writeHead(400, { 'Content-Type': 'text/plain' });
     res.end('400 Bad Request');

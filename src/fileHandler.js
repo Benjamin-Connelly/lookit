@@ -152,8 +152,33 @@ async function handleDirectory(filePath, urlPath, stats, res, context) {
 }
 
 async function handleMarkdown(filePath, urlPath, stats, res, context) {
-  res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-  res.end('Markdown handler - TODO');
+  const { createMarkdownTemplate } = require('./templates/markdown.js');
+  const { escapeHtml } = require('./utils.js');
+
+  try {
+    // Read the markdown file content
+    const data = await fs.readFile(filePath, 'utf8');
+
+    // Render markdown to HTML
+    const html = context.md.render(data);
+
+    // Get the file name
+    const fileName = path.basename(filePath);
+
+    // Generate HTML using the markdown template
+    const fullHtml = createMarkdownTemplate({
+      fileName,
+      html,
+      urlPath,
+      escapeHtml
+    });
+
+    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+    res.end(fullHtml);
+  } catch (err) {
+    res.writeHead(500, { 'Content-Type': 'text/plain' });
+    res.end(`Error reading file: ${err.message}`);
+  }
 }
 
 async function handleCode(filePath, urlPath, stats, res, context) {
