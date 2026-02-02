@@ -30,6 +30,12 @@ function parseArgs(argv) {
       args.showAll = true;
     } else if (arg === '--quiet' || arg === '-q') {
       args.quiet = true;
+    } else if (arg === '--list' || arg === '-l') {
+      args.list = true;
+    } else if (arg === '--stop-all') {
+      args.stopAll = true;
+    } else if (arg === '--stop' && argv[i + 1]) {
+      args.stop = parseInt(argv[++i], 10);
     } else if (arg === '--help' || arg === '-h') {
       printHelp();
       process.exit(0);
@@ -57,6 +63,9 @@ OPTIONS:
   --cert <path>        Path to TLS certificate (default: ~/.config/lookit/localhost.pem)
   --key <path>         Path to TLS private key (default: ~/.config/lookit/localhost-key.pem)
   -q, --quiet          Suppress TLS certificate warnings
+  -l, --list           List all running lookit instances
+  --stop <port>        Stop lookit instance on specific port
+  --stop-all           Stop all running lookit instances
   -h, --help           Show this help message
 
 FILE SUPPORT:
@@ -72,6 +81,13 @@ EXAMPLES:
   lookit --open                    # Auto-open browser
   lookit --https-only              # Require HTTPS, fail if no certs
   lookit --all                     # Show hidden files
+  lookit --list                    # Show all running instances
+  lookit --stop 7778               # Stop instance on port 7778
+  lookit --stop-all                # Stop all lookit instances
+
+PROCESS MANAGEMENT:
+  Multiple instances can run simultaneously. Each uses the next available port.
+  Use --list to see all running instances, --stop-all to clean up.
 
 TLS SETUP (Ubuntu):
   sudo apt install -y mkcert libnss3-tools

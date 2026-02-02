@@ -8,9 +8,30 @@ const hljs = require('highlight.js');
 const mdHighlight = require('markdown-it-highlightjs');
 const { parseArgs, printCertInstructions, openBrowser, escapeHtml } = require('./utils');
 const { handleFile } = require('./fileHandler');
+const { registerInstance, unregisterInstance, cleanStaleInstances } = require('./instanceManager');
+const { handleListCommand, handleStopCommand, handleStopAllCommand } = require('./commands');
 
 // Parse CLI arguments
 const args = parseArgs(process.argv.slice(2));
+
+// Handle management commands (don't start server)
+if (args.list) {
+  handleListCommand();
+  process.exit(0);
+}
+
+if (args.stopAll) {
+  handleStopAllCommand();
+  process.exit(0);
+}
+
+if (args.stop !== undefined) {
+  handleStopCommand(args.stop);
+  process.exit(0);
+}
+
+// Clean stale instances before starting server
+cleanStaleInstances();
 const PORT = args.port || 7777;
 const HOST = args.host || '127.0.0.1';
 const CWD = process.cwd();
@@ -41,33 +62,77 @@ if (!hasCerts && !args.quiet) {
   console.log('');
 }
 
-// Create and start server
-const server = useHttps ? createHttpsServer() : createHttpServer();
+// Track the port we're running on
+let runningPort = null;
 
-server.listen(PORT, HOST, () => {
-  const protocol = useHttps ? 'https' : 'http';
-  const url = `${protocol}://${HOST}:${PORT}`;
+// Start server with auto-increment port logic
+function startServer(port, retriesLeft = 10) {
+  const server = useHttps ? createHttpsServer() : createHttpServer();
 
-  console.log(`👀 lookit - Code Browser`);
-  console.log(`📂 Serving: ${CWD}`);
-  console.log(`🌐 Address:  ${url}`);
-  console.log(`🔒 Security: ${useHttps ? 'HTTPS (TLS)' : 'HTTP (plaintext)'}`);
-  console.log('\nPress Ctrl+C to stop.\n');
+  server.listen(port, HOST, () => {
+    runningPort = port;
+    const protocol = useHttps ? 'https' : 'http';
+    const url = `${protocol}://${HOST}:${port}`;
 
-  if (args.open) {
-    openBrowser(url);
+    registerInstance(port, CWD, protocol);
+
+    console.log(`👀 lookit - Code Browser`);
+    console.log(`📂 Serving: ${CWD}`);
+    console.log(`🌐 Address:  ${url}`);
+    console.log(`🔒 Security: ${useHttps ? 'HTTPS (TLS)' : 'HTTP (plaintext)'}`);
+    if (port === 7777) {
+      console.log(`🍀 Lucky port: ${port}`);
+    }
+    console.log('\nPress Ctrl+C to stop.\n');
+
+    if (args.open) {
+      openBrowser(url);
+    }
+  });
+
+  server.on('error', (err) => {
+    if (err.code === 'EADDRINUSE' && retriesLeft > 0) {
+      console.log(`⏭️  Port ${port} in use, trying ${port + 1}...`);
+      startServer(port + 1, retriesLeft - 1);
+    } else if (err.code === 'EADDRINUSE') {
+      console.error(`❌ Error: Ports ${PORT}-${port} all in use.`);
+      console.error(`   Stop existing instances: lookit --stop-all`);
+      console.error(`   Or specify a higher port: lookit --port ${port + 10}`);
+      process.exit(1);
+    } else {
+      console.error(`❌ Server error: ${err.message}`);
+      process.exit(1);
+    }
+  });
+}
+
+// Cleanup on exit
+process.on('SIGINT', () => {
+  console.log('\n👋 Shutting down lookit...');
+  if (runningPort) {
+    unregisterInstance(runningPort);
   }
+  process.exit(0);
 });
 
-server.on('error', (err) => {
-  if (err.code === 'EADDRINUSE') {
-    console.error(`❌ Error: Port ${PORT} is already in use.`);
-    console.error(`   Try a different port with: lookit --port ${PORT + 1}`);
-  } else {
-    console.error(`❌ Server error: ${err.message}`);
+process.on('SIGTERM', () => {
+  if (runningPort) {
+    unregisterInstance(runningPort);
+  }
+  process.exit(0);
+});
+
+// Cleanup on uncaught errors
+process.on('uncaughtException', (err) => {
+  console.error('❌ Uncaught error:', err);
+  if (runningPort) {
+    unregisterInstance(runningPort);
   }
   process.exit(1);
 });
+
+// Start from initial port
+startServer(PORT);
 
 function createHttpsServer() {
   const options = {

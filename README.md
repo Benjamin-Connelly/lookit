@@ -76,8 +76,33 @@ The server starts on **port 7777** 🍀 by default.
 --no-https           Use HTTP only, skip HTTPS
 --https-only         Require HTTPS, fail if certificates not found
 --no-dirlist         Disable directory listings
+-l, --list           List all running lookit instances
+--stop <port>        Stop lookit instance on specific port
+--stop-all           Stop all running lookit instances
 -h, --help           Show help message
 ```
+
+### Process Management
+
+Lookit automatically finds available ports starting from 7777. Multiple instances can run simultaneously.
+
+```bash
+# Start multiple instances
+cd ~/project1 && lookit &    # Runs on 7777
+cd ~/project2 && lookit &    # Runs on 7778
+cd ~/project3 && lookit &    # Runs on 7779
+
+# List all running instances
+lookit --list
+
+# Stop specific instance
+lookit --stop 7778
+
+# Stop all instances
+lookit --stop-all
+```
+
+Each instance tracks its port and directory. Stale instances (from crashes) are automatically cleaned up.
 
 ## File Type Support
 
@@ -265,9 +290,20 @@ lookit/
 
 ### Port Already in Use
 
+Lookit automatically finds the next available port starting from 7777.
+
 ```bash
-# Use different port
+# Starts on 7777 (or next available: 7778, 7779, etc.)
+lookit
+
+# Or specify a different port manually
 lookit --port 8080
+
+# See what ports are in use
+lookit --list
+
+# Stop all instances to free ports
+lookit --stop-all
 ```
 
 ### HTTPS Certificate Warnings
