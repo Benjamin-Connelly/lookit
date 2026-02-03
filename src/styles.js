@@ -560,6 +560,129 @@ const baseStyles = `
       text-decoration: underline;
     }
   }
+
+  /* Git Status Badges */
+  .git-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.125rem 0.5rem;
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    font-weight: 700;
+    border-radius: var(--radius-sm);
+    margin-right: var(--space-2);
+    letter-spacing: 0.05em;
+  }
+
+  .git-badge.git-orange {
+    background-color: rgba(255, 140, 0, 0.15);
+    color: #ff8c00;
+    border: 1px solid rgba(255, 140, 0, 0.3);
+  }
+
+  .git-badge.git-green {
+    background-color: rgba(63, 185, 80, 0.15);
+    color: #3fb950;
+    border: 1px solid rgba(63, 185, 80, 0.3);
+  }
+
+  .git-badge.git-purple {
+    background-color: rgba(163, 113, 247, 0.15);
+    color: #a371f7;
+    border: 1px solid rgba(163, 113, 247, 0.3);
+  }
+
+  .git-badge.git-red {
+    background-color: rgba(248, 81, 73, 0.15);
+    color: #f85149;
+    border: 1px solid rgba(248, 81, 73, 0.3);
+  }
+
+  .git-badge.git-blue {
+    background-color: rgba(88, 166, 255, 0.15);
+    color: #58a6ff;
+    border: 1px solid rgba(88, 166, 255, 0.3);
+  }
+
+  /* Git Branch Badge */
+  .git-branch {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    padding: var(--space-1) var(--space-3);
+    margin-left: var(--space-4);
+    background-color: var(--bg-hover);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-xl);
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    font-weight: 600;
+    color: var(--accent-blue);
+  }
+
+  /* Repository Statistics Panel */
+  .repo-stats {
+    margin: var(--space-6) var(--space-6) 0;
+    padding: var(--space-5);
+    background-color: var(--bg-tertiary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-lg);
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: var(--space-5);
+  }
+
+  .repo-stat {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+
+  .repo-stat-value {
+    font-size: var(--text-2xl);
+    font-weight: 700;
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+  }
+
+  .repo-stat-label {
+    font-size: var(--text-xs);
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 600;
+  }
+
+  /* Responsive Git Styles */
+  @media (max-width: 768px) {
+    .repo-stats {
+      margin: var(--space-4) var(--space-4) 0;
+      padding: var(--space-4);
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: var(--space-4);
+    }
+
+    .repo-stat-value {
+      font-size: var(--text-xl);
+    }
+
+    .git-branch {
+      margin-left: var(--space-2);
+      padding: var(--space-1) var(--space-2);
+    }
+  }
+
+  @media (max-width: 480px) {
+    .repo-stats {
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    .git-badge {
+      font-size: 0.65rem;
+      padding: 0.1rem 0.4rem;
+      margin-right: var(--space-1);
+    }
+  }
 `;
 
 module.exports = { baseStyles };

@@ -67,6 +67,80 @@ function formatDate(date) {
 }
 
 /**
+ * Render git status badge
+ * @param {string} status - Git status code
+ * @returns {string} HTML for git badge
+ */
+function renderGitBadge(status) {
+  const badges = {
+    'M': '<span class="git-badge git-orange">[M]</span>',
+    'A': '<span class="git-badge git-green">[A]</span>',
+    '??': '<span class="git-badge git-purple">[??]</span>',
+    'D': '<span class="git-badge git-red">[D]</span>',
+    'R': '<span class="git-badge git-blue">[R]</span>'
+  };
+  return badges[status] || '';
+}
+
+/**
+ * Render git status legend
+ * @returns {string} HTML for git status legend
+ */
+function renderGitLegend() {
+  return `
+    <div class="git-legend">
+      <div class="git-legend-title">Git Status:</div>
+      <div class="git-legend-items">
+        <span class="git-legend-item"><span class="git-badge git-green">[A]</span> Added</span>
+        <span class="git-legend-item"><span class="git-badge git-orange">[M]</span> Modified</span>
+        <span class="git-legend-item"><span class="git-badge git-red">[D]</span> Deleted</span>
+        <span class="git-legend-item"><span class="git-badge git-blue">[R]</span> Renamed</span>
+        <span class="git-legend-item"><span class="git-badge git-purple">[??]</span> Untracked</span>
+      </div>
+    </div>
+  `;
+}
+
+/**
+ * Render repository statistics panel
+ * @param {Object} stats - Repository statistics
+ * @param {Function} escapeHtml - HTML escape function
+ * @returns {string} HTML for repo stats panel
+ */
+function renderRepoStats(stats, escapeHtml) {
+  if (!stats) return '';
+
+  return `
+    <div class="repo-stats">
+      <div class="repo-stat">
+        <div class="repo-stat-value">${stats.trackedFiles}</div>
+        <div class="repo-stat-label">Tracked Files</div>
+      </div>
+      <div class="repo-stat">
+        <div class="repo-stat-value">${stats.modified}</div>
+        <div class="repo-stat-label">Modified</div>
+      </div>
+      <div class="repo-stat">
+        <div class="repo-stat-value">${stats.staged}</div>
+        <div class="repo-stat-label">Staged</div>
+      </div>
+      <div class="repo-stat">
+        <div class="repo-stat-value">${stats.untracked}</div>
+        <div class="repo-stat-label">Untracked</div>
+      </div>
+      <div class="repo-stat">
+        <div class="repo-stat-value">${stats.totalCommits}</div>
+        <div class="repo-stat-label">Total Commits</div>
+      </div>
+      <div class="repo-stat">
+        <div class="repo-stat-value">${escapeHtml(stats.lastCommit)}</div>
+        <div class="repo-stat-label">Last Commit</div>
+      </div>
+    </div>
+  `;
+}
+
+/**
  * Create directory listing template
  * @param {Object} options - Template options
  * @param {string} options.dirName - Name of the directory
@@ -74,9 +148,11 @@ function formatDate(date) {
  * @param {string} options.urlPath - URL path for breadcrumb
  * @param {boolean} options.showAll - Whether to show ignored files
  * @param {Function} options.escapeHtml - Function to escape HTML
+ * @param {string} options.currentBranch - Current git branch name
+ * @param {Object} options.repoStats - Repository statistics
  * @returns {string} Complete HTML document
  */
-function createDirectoryTemplate({ dirName, entries, urlPath, showAll, escapeHtml }) {
+function createDirectoryTemplate({ dirName, entries, urlPath, showAll, escapeHtml, currentBranch, repoStats }) {
   const breadcrumb = generateBreadcrumb(urlPath, escapeHtml);
 
   // Sort entries: directories first, then alphabetically
@@ -88,6 +164,15 @@ function createDirectoryTemplate({ dirName, entries, urlPath, showAll, escapeHtm
     // Then alphabetically by name (case-insensitive)
     return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
   });
+
+  // Check if all entries have the same commit
+  const commits = sortedEntries.map(e => e.lastCommit).filter(Boolean);
+  const uniqueCommits = [...new Set(commits)];
+  const hasCommonCommit = uniqueCommits.length === 1 && commits.length === sortedEntries.length;
+  const commonCommit = hasCommonCommit ? uniqueCommits[0] : null;
+
+  // Check if any entries have git status
+  const hasGitStatus = sortedEntries.some(e => e.gitStatus);
 
   // Add parent directory link if not root
   const isRoot = urlPath === '/' || urlPath === '';
@@ -113,16 +198,22 @@ function createDirectoryTemplate({ dirName, entries, urlPath, showAll, escapeHtm
     // Gray out ignored files if they're shown
     const ignoredClass = entry.ignored ? ' ignored' : '';
 
+    // Show commit info unless there's a common commit in header
+    const showCommit = !commonCommit && entry.lastCommit;
+
     fileListHtml += `
       <a href="${escapeHtml(entry.url)}" class="file-entry${ignoredClass}">
         <div class="file-icon">${icon}</div>
         <div class="file-info">
-          <div class="file-name">${escapeHtml(entry.name)}</div>
+          <div class="file-name">
+            ${entry.gitStatus ? renderGitBadge(entry.gitStatus) : ''}${escapeHtml(entry.name)}
+          </div>
           <div class="file-meta">
             <span class="file-size">${sizeStr}</span>
             ${sizeStr ? '<span class="separator">•</span>' : ''}
             <span class="file-date">${dateStr}</span>
           </div>
+          ${showCommit ? `<div class="file-commit">📝 ${escapeHtml(entry.lastCommit)}</div>` : ''}
         </div>
       </a>
     `;
@@ -136,9 +227,15 @@ function createDirectoryTemplate({ dirName, entries, urlPath, showAll, escapeHtm
       <div class="directory-icon">📁</div>
       <div class="directory-info">
         <div class="directory-name">${escapeHtml(dirName)}</div>
-        <div class="directory-meta">${itemCount} ${itemLabel}</div>
+        <div class="directory-meta">
+          ${itemCount} ${itemLabel}
+          ${currentBranch ? `<span class="git-branch">🌿 ${escapeHtml(currentBranch)}</span>` : ''}
+          ${commonCommit ? `<span class="separator">•</span><span class="last-commit">📝 ${escapeHtml(commonCommit)}</span>` : ''}
+        </div>
       </div>
     </div>
+    ${hasGitStatus ? renderGitLegend() : ''}
+    ${renderRepoStats(repoStats, escapeHtml)}
     <div class="file-list">
       ${fileListHtml}
     </div>
@@ -174,6 +271,44 @@ function createDirectoryTemplate({ dirName, entries, urlPath, showAll, escapeHtm
     .directory-meta {
       font-size: 0.875rem;
       color: #6c757d;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .last-commit {
+      font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', 'source-code-pro', monospace;
+      font-size: 0.8125rem;
+      color: #495057;
+    }
+
+    .git-legend {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 0.75rem 1.5rem;
+      background: #fff9e6;
+      border-bottom: 1px solid #e9ecef;
+      font-size: 0.8125rem;
+    }
+
+    .git-legend-title {
+      font-weight: 600;
+      color: #495057;
+    }
+
+    .git-legend-items {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .git-legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      color: #6c757d;
     }
 
     .file-list {
@@ -191,6 +326,7 @@ function createDirectoryTemplate({ dirName, entries, urlPath, showAll, escapeHtm
       color: inherit;
       border-bottom: 1px solid #e9ecef;
       transition: background-color 0.15s ease;
+      position: relative;
     }
 
     .file-entry:last-child {
@@ -254,6 +390,13 @@ function createDirectoryTemplate({ dirName, entries, urlPath, showAll, escapeHtm
       color: #6c757d;
     }
 
+    .file-commit {
+      font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', 'source-code-pro', monospace;
+      font-size: 0.8125rem;
+      color: #6c757d;
+      margin-top: 0.25rem;
+    }
+
     /* Responsive adjustments */
     @media (max-width: 768px) {
       .file-entry {
@@ -270,6 +413,23 @@ function createDirectoryTemplate({ dirName, entries, urlPath, showAll, escapeHtm
 
       .file-meta {
         font-size: 0.8125rem;
+      }
+
+      .git-legend {
+        padding: 0.5rem 1rem;
+        font-size: 0.75rem;
+      }
+
+      .git-legend-items {
+        gap: 0.5rem;
+      }
+
+      .last-commit {
+        font-size: 0.75rem;
+      }
+
+      .file-commit {
+        font-size: 0.75rem;
       }
     }
   `;

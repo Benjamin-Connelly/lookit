@@ -149,6 +149,7 @@ async function handleFile(filePath, urlPath, stats, res, context) {
 async function handleDirectory(filePath, urlPath, stats, res, context) {
   const { createDirectoryTemplate } = require('./templates/directory.js');
   const { escapeHtml, loadGitignore, shouldIgnoreFile } = require('./utils.js');
+  const { findGitRoot, getGitStatus, getFileGitStatus, getCurrentBranch, getRepoStats, batchGetLastCommits } = require('./gitHandler.js');
 
   // Check if directory listing is disabled
   if (context.args.noDirlist) {
@@ -163,6 +164,12 @@ async function handleDirectory(filePath, urlPath, stats, res, context) {
 
     // Load .gitignore rules
     const ig = loadGitignore(filePath);
+
+    // Get git information
+    const gitRoot = findGitRoot(filePath);
+    const gitStatusMap = gitRoot ? getGitStatus(gitRoot) : null;
+    const currentBranch = gitRoot ? getCurrentBranch(gitRoot) : null;
+    const repoStats = (gitRoot && filePath === gitRoot) ? getRepoStats(gitRoot) : null;
 
     // Process entries
     const entries = [];
@@ -186,6 +193,9 @@ async function handleDirectory(filePath, urlPath, stats, res, context) {
         // Detect file type
         const fileType = await detectFileType(fullPath, fileStats);
 
+        // Get git status for this file
+        const gitStatus = gitStatusMap ? getFileGitStatus(fullPath, gitRoot, gitStatusMap) : null;
+
         entries.push({
           name: file,
           url: fileUrl,
@@ -193,13 +203,27 @@ async function handleDirectory(filePath, urlPath, stats, res, context) {
           size: fileStats.size,
           mtime: fileStats.mtime,
           fileType,
-          ignored
+          ignored,
+          gitStatus
         });
       } catch (err) {
         // Skip files we can't stat
         console.error(`Error reading ${file}: ${err.message}`);
       }
     }
+
+    // Batch fetch commit metadata for all files
+    let commitMetadata = new Map();
+    if (gitRoot) {
+      const filePaths = entries.map(entry => path.join(filePath, entry.name));
+      commitMetadata = batchGetLastCommits(filePaths, gitRoot);
+    }
+
+    // Add commit info to entries
+    entries.forEach(entry => {
+      const fullPath = path.join(filePath, entry.name);
+      entry.lastCommit = commitMetadata.get(fullPath) || null;
+    });
 
     // Get directory name
     const dirName = path.basename(filePath) || '/';
@@ -210,7 +234,9 @@ async function handleDirectory(filePath, urlPath, stats, res, context) {
       entries,
       urlPath,
       showAll: context.args.showAll || false,
-      escapeHtml
+      escapeHtml,
+      currentBranch,
+      repoStats
     });
 
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
