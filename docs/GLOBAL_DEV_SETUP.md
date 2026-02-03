@@ -11,7 +11,7 @@ This document tracks the global development tools installed on this system.
 
 ### Trivy (v0.69.0)
 **Purpose:** Container and filesystem vulnerability scanner
-**Location:** `~/.local/bin/trivy`
+**Location:** ~/.local/bin/trivy
 
 ```bash
 # Scan a Docker image
@@ -48,7 +48,7 @@ snyk auth
 
 ### Beads (bd) (v0.49.1)
 **Purpose:** Git-integrated issue tracking
-**Location:** `~/.local/bin/bd`
+**Location:** ~/.local/bin/bd
 **Project:** Initialized in lookit
 
 ```bash
@@ -65,9 +65,9 @@ bd onboard
 ```
 
 **Files Created:**
-- `AGENTS.md` - Instructions for Claude and other agents
-- `.beads/` - Local issue database
-- `.gitattributes` - Merge driver config
+- [AGENTS.md](../AGENTS.md) - Instructions for Claude and other agents
+- .beads/ - Local issue database
+- .gitattributes - Merge driver config
 
 **Git Hooks Installed:**
 - post-merge
@@ -82,15 +82,15 @@ bd onboard
 
 ### GitHub CLI (gh)
 **Purpose:** GitHub operations from command line
-**Location:** `/usr/bin/gh`
+**Location:** /usr/bin/gh
 
 ### jq
 **Purpose:** JSON processor
-**Location:** `/usr/bin/jq`
+**Location:** /usr/bin/jq
 
 ### fzf
 **Purpose:** Fuzzy finder
-**Location:** `~/src/3rd-party/tui/.fzf/bin/fzf`
+**Location:** ~/src/3rd-party/tui/.fzf/bin/fzf
 
 ### bat
 **Purpose:** cat with syntax highlighting
@@ -210,7 +210,7 @@ sudo apt install shellcheck yamllint hyperfine
 
 ## Matt's Resources Summary
 
-Explored `/home/bconnelly/Documents/LLMs/matts/` and found useful reference materials:
+Explored /home/bconnelly/Documents/LLMs/matts/ and found useful reference materials:
 
 ### Agents
 - **Autonomous Testing Agent** - Comprehensive test maintenance agent
@@ -301,11 +301,11 @@ ncu --version
 
 ---
 
-## Integration with CLAUDE.md
+## Integration with Configuration Files
 
-The AGENTS.md file created by `bd init` works alongside your CLAUDE.md:
+The [AGENTS.md](../AGENTS.md) file created by `bd init` works alongside your [CLAUDE.md](../CLAUDE.md):
 
-**CLAUDE.md:** Global "cu" (continue unattended) mode + project values
-**AGENTS.md:** Beads workflow + landing the plane instructions
+**[CLAUDE.md](../CLAUDE.md):** Global "cu" (continue unattended) mode + project values
+**[AGENTS.md](../AGENTS.md):** Beads workflow + landing the plane instructions
 
 Both files are read by Claude Code and provide complementary guidance.

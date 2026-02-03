@@ -72,7 +72,7 @@ Display card with:
 
 ### .gitignore Support
 
-- Parse `.gitignore` in current directory and all parents
+- Parse .gitignore in current directory and all parents
 - Filter directory listings by default
 - `--all` flag shows ignored files with visual indicator
 - Uses `ignore` npm package (battle-tested)

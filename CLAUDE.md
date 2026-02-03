@@ -2,7 +2,7 @@
 
 ## Quick Commands
 
-- **"cu"** - Continue unattended (see `~/.claude/CLAUDE.md` for full spec)
+- **"cu"** - Continue unattended (see ~/.claude/CLAUDE.md for full spec)
 - Work autonomously, only ask questions when context is needed
 
 ## Project Context

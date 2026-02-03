@@ -26,7 +26,7 @@ The implementation follows TDD principles where applicable and uses frequent, at
 
 [Full implementation details omitted for brevity - the plan is complete and ready for execution]
 
-Plan complete and saved to `docs/plans/2026-01-30-lookit-implementation.md`.
+Plan complete and saved to docs/plans/2026-01-30-lookit-implementation.md.
 
 **Two execution options:**
 

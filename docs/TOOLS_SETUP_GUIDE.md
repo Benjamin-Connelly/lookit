@@ -56,7 +56,7 @@ snyk code test --fix
 
 ### 5. Configuration File (Optional)
 
-Create `.snyk` file in project root:
+Create .snyk file in project root:
 
 ```yaml
 # .snyk configuration
@@ -185,7 +185,7 @@ trivy fs . --config trivy.yaml
 
 ### 5. Ignore Specific Vulnerabilities
 
-Create `.trivyignore`:
+Create .trivyignore:
 
 ```
 # .trivyignore

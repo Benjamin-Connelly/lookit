@@ -245,10 +245,10 @@ bd hooks install --force
 
 ## 📚 Full Documentation
 
-- **Complete Setup:** `docs/TOOLS_SETUP_GUIDE.md`
-- **Global Setup:** `docs/GLOBAL_DEV_SETUP.md`
-- **Agent Instructions:** `AGENTS.md`
-- **Project Config:** `CLAUDE.md`
+- **Complete Setup:** [docs/TOOLS_SETUP_GUIDE.md](TOOLS_SETUP_GUIDE.md)
+- **Global Setup:** [docs/GLOBAL_DEV_SETUP.md](GLOBAL_DEV_SETUP.md)
+- **Agent Instructions:** [AGENTS.md](../AGENTS.md)
+- **Project Config:** [CLAUDE.md](../CLAUDE.md)
 
 ---
 

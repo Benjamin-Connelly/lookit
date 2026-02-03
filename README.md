@@ -18,7 +18,7 @@ Browse your project files with syntax highlighting, markdown rendering, and dire
 
 **📁 Smart Directory Listings**
 - Emoji file icons for quick recognition
-- Respects `.gitignore` by default
+- Respects .gitignore by default
 - Human-readable sizes and dates
 - Sorted: directories first, alphabetically second
 
@@ -227,7 +227,7 @@ lookit --all
 - Professional appearance
 
 **Respects Your Workflow**
-- Honors `.gitignore` files
+- Honors .gitignore files
 - Secure path handling
 - Non-intrusive
 
@@ -334,7 +334,7 @@ pkill -f lookit
 
 ## Configuration
 
-lookit looks for HTTPS certificates in `~/.config/lookit/`:
+lookit looks for HTTPS certificates in ~/.config/lookit/:
 - `localhost.pem` - Certificate file
 - `localhost-key.pem` - Private key file
 
