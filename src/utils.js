@@ -130,11 +130,80 @@ function hasMkcert() {
 }
 
 /**
+ * Install mkcert CA into Firefox-based browser profiles that mkcert doesn't know about.
+ * mkcert handles ~/.mozilla/firefox/ but not forks like Zen, Waterfox, LibreWolf, etc.
+ */
+function installCaInBrowserProfiles(quiet) {
+  const home = process.env.HOME;
+  if (!home) return;
+
+  let caRoot;
+  try {
+    caRoot = execFileSync('mkcert', ['-CAROOT'], { stdio: 'pipe' }).toString().trim();
+  } catch {
+    return;
+  }
+
+  const rootCa = path.join(caRoot, 'rootCA.pem');
+  if (!fs.existsSync(rootCa)) return;
+
+  // Firefox-fork profile directories that mkcert doesn't handle
+  const browserDirs = ['.zen', '.waterfox', '.librewolf', '.floorp'];
+  let hasCertutil = true;
+
+  for (const dir of browserDirs) {
+    const browserPath = path.join(home, dir);
+    if (!fs.existsSync(browserPath)) continue;
+
+    try {
+      const profiles = fs.readdirSync(browserPath, { withFileTypes: true });
+      for (const entry of profiles) {
+        if (!entry.isDirectory()) continue;
+
+        const profileDir = path.join(browserPath, entry.name);
+        const certDb = path.join(profileDir, 'cert9.db');
+        if (!fs.existsSync(certDb)) continue;
+
+        // Check if CA is already installed in this profile
+        try {
+          const result = execFileSync('certutil', [
+            '-d', `sql:${profileDir}`, '-L'
+          ], { stdio: 'pipe' }).toString();
+          if (result.includes('mkcert')) continue;
+        } catch {
+          if (hasCertutil) {
+            hasCertutil = false;
+            if (!quiet) {
+              console.warn('⚠️  certutil not found — install libnss3-tools for browser CA trust');
+            }
+          }
+          break;
+        }
+
+        try {
+          execFileSync('certutil', [
+            '-A', '-d', `sql:${profileDir}`,
+            '-t', 'C,,',
+            '-n', 'mkcert development CA',
+            '-i', rootCa
+          ], { stdio: 'pipe' });
+        } catch {
+          // Non-fatal — cert just won't be trusted in this profile
+        }
+      }
+    } catch {
+      // Can't read browser dir, skip
+    }
+  }
+}
+
+/**
  * Auto-generate TLS certificates with mkcert if available.
  * Returns true if certs exist (or were just created), false otherwise.
  */
 function ensureCerts(certPath, keyPath, quiet) {
   if (fs.existsSync(certPath) && fs.existsSync(keyPath)) {
+    installCaInBrowserProfiles(quiet);
     return true;
   }
 
@@ -161,6 +230,8 @@ function ensureCerts(certPath, keyPath, quiet) {
       '-key-file', keyPath,
       'localhost', '127.0.0.1', '::1'
     ], { stdio: 'pipe' });
+
+    installCaInBrowserProfiles(quiet);
 
     console.log('🔐 Auto-generated HTTPS certificates with mkcert');
     return true;
