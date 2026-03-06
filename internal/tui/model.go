@@ -57,8 +57,8 @@ type Model struct {
 	mdRenderer   *render.MarkdownRenderer
 	codeRenderer *render.CodeRenderer
 
-	navigator *LinkNavigator
-	sidePanel SidePanelModel
+	navigator  *LinkNavigator
+	sidePanel  SidePanelModel
 	cmdPalette CommandPalette
 
 	focus    Panel
@@ -71,7 +71,7 @@ type Model struct {
 }
 
 // New creates a new root TUI model.
-func New(cfg *config.Config, idx *index.Index, links *index.LinkGraph) Model {
+func New(cfg *config.Config, idx *index.Index, links *index.LinkGraph) *Model {
 	km := DefaultKeyMap()
 	switch cfg.Keymap {
 	case "vim":
@@ -88,7 +88,7 @@ func New(cfg *config.Config, idx *index.Index, links *index.LinkGraph) Model {
 	palette := NewCommandPalette()
 	palette.RegisterCommands(idx, links)
 
-	return Model{
+	return &Model{
 		cfg:          cfg,
 		idx:          idx,
 		links:        links,
@@ -106,12 +106,12 @@ func New(cfg *config.Config, idx *index.Index, links *index.LinkGraph) Model {
 }
 
 // Init implements tea.Model.
-func (m Model) Init() tea.Cmd {
+func (m *Model) Init() tea.Cmd {
 	return nil
 }
 
 // Update implements tea.Model.
-func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		// Command palette intercepts all keys when active
@@ -171,7 +171,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m Model) handleNormalKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+func (m *Model) handleNormalKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "q", "ctrl+c":
 		m.quitting = true
@@ -279,7 +279,7 @@ func (m Model) handleNormalKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m.handlePreviewKey(msg)
 }
 
-func (m Model) handleFileListKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+func (m *Model) handleFileListKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "up", "k":
 		m.fileList.MoveUp()
@@ -308,7 +308,7 @@ func (m Model) handleFileListKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m Model) handlePreviewKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+func (m *Model) handlePreviewKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "up", "k":
 		m.preview.ScrollUp(1)
@@ -332,7 +332,7 @@ func (m Model) handlePreviewKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m Model) handleSidePanelKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+func (m *Model) handleSidePanelKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "up", "k":
 		m.sidePanel.MoveUp()
@@ -369,7 +369,7 @@ func (m Model) handleSidePanelKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m Model) handleFilterKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+func (m *Model) handleFilterKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "esc":
 		m.fileList.ClearFilter()
@@ -404,7 +404,7 @@ func (m Model) handleFilterKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	}
 }
 
-func (m Model) handleCommandKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+func (m *Model) handleCommandKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "esc":
 		m.cmdPalette.Close()
@@ -445,7 +445,7 @@ func (m Model) handleCommandKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	}
 }
 
-func (m Model) handleLinkSelectKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+func (m *Model) handleLinkSelectKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "esc":
 		m.navigator.CloseLinks()
@@ -468,7 +468,7 @@ func (m Model) handleLinkSelectKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m Model) handleFollowLink() (tea.Model, tea.Cmd) {
+func (m *Model) handleFollowLink() (tea.Model, tea.Cmd) {
 	if m.preview.filePath == "" {
 		return m, nil
 	}
@@ -488,7 +488,7 @@ func (m Model) handleFollowLink() (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m Model) handleLinkFollow(target string) (tea.Model, tea.Cmd) {
+func (m *Model) handleLinkFollow(target string) (tea.Model, tea.Cmd) {
 	// Save current position in history
 	if m.preview.filePath != "" {
 		m.navigator.Navigate(m.preview.filePath, m.preview.scroll)
@@ -496,7 +496,7 @@ func (m Model) handleLinkFollow(target string) (tea.Model, tea.Cmd) {
 	return m.navigateToPath(target, 0)
 }
 
-func (m Model) navigateToPath(path string, scroll int) (tea.Model, tea.Cmd) {
+func (m *Model) navigateToPath(path string, scroll int) (tea.Model, tea.Cmd) {
 	entry := m.idx.Lookup(path)
 	if entry == nil {
 		return m, func() tea.Msg {
@@ -517,7 +517,7 @@ func (m Model) navigateToPath(path string, scroll int) (tea.Model, tea.Cmd) {
 	}
 }
 
-func (m Model) handleCommandLinks() (tea.Model, tea.Cmd) {
+func (m *Model) handleCommandLinks() (tea.Model, tea.Cmd) {
 	if m.preview.filePath == "" {
 		return m, func() tea.Msg {
 			return StatusMsg{Text: "No file open"}
@@ -546,7 +546,11 @@ func (m Model) handleCommandLinks() (tea.Model, tea.Cmd) {
 	}
 }
 
-func (m Model) loadPreview(entry index.FileEntry) (tea.Model, tea.Cmd) {
+func (m *Model) loadPreview(entry index.FileEntry) (tea.Model, tea.Cmd) {
+	// Capture renderers for closure (safe since they're pointers)
+	mdRenderer := m.mdRenderer
+	codeRenderer := m.codeRenderer
+
 	return m, func() tea.Msg {
 		if entry.IsDir {
 			return PreviewLoadedMsg{
@@ -566,13 +570,9 @@ func (m Model) loadPreview(entry index.FileEntry) (tea.Model, tea.Cmd) {
 		content := string(data)
 
 		if entry.IsMarkdown {
-			// Store raw source for TOC extraction (via closure capture of m)
-			// We return PreviewLoadedMsg which sets the rendered content;
-			// raw source is stored separately via rawSourceMsg
-			if m.mdRenderer != nil {
-				rendered, renderErr := m.mdRenderer.Render(content)
+			if mdRenderer != nil {
+				rendered, renderErr := mdRenderer.Render(content)
 				if renderErr == nil {
-					// Return both raw and rendered via a batch
 					return previewWithSourceMsg{
 						preview: PreviewLoadedMsg{
 							Path:    entry.RelPath,
@@ -585,7 +585,7 @@ func (m Model) loadPreview(entry index.FileEntry) (tea.Model, tea.Cmd) {
 		} else {
 			ext := filepath.Ext(entry.RelPath)
 			if isTextFile(ext) {
-				highlighted, hlErr := m.codeRenderer.Highlight(filepath.Base(entry.RelPath), content)
+				highlighted, hlErr := codeRenderer.Highlight(filepath.Base(entry.RelPath), content)
 				if hlErr == nil {
 					content = highlighted
 				}
@@ -605,7 +605,7 @@ type previewWithSourceMsg struct {
 	rawSource string
 }
 
-func (m Model) recalcLayout() {
+func (m *Model) recalcLayout() {
 	listWidth := m.width / 3
 	previewWidth := m.width - listWidth - 1
 	if m.sidePanel.Visible() {
@@ -621,7 +621,7 @@ func (m Model) recalcLayout() {
 	}
 }
 
-func (m Model) modeString() string {
+func (m *Model) modeString() string {
 	switch m.focus {
 	case PanelFileList:
 		return "FILES"
@@ -633,7 +633,7 @@ func (m Model) modeString() string {
 }
 
 // View implements tea.Model.
-func (m Model) View() string {
+func (m *Model) View() string {
 	if m.quitting {
 		return ""
 	}
@@ -682,8 +682,6 @@ func (m Model) View() string {
 		previewContent = overlay + "\n" + strings.Repeat("─", 20) + "\n" + previewContent
 	}
 
-	right := previewStyle.Render(previewContent)
-
 	var main string
 	if m.sidePanel.Visible() {
 		panelStyle := lipgloss.NewStyle().
@@ -702,16 +700,10 @@ func (m Model) View() string {
 			BorderForeground(previewBorderColor).
 			Render(previewContent)
 
-		panelBorderColor := dimColor
-		if m.focus == PanelSide {
-			panelBorderColor = focusColor
-		}
-		_ = panelBorderColor // used for panel styling
 		sideContent := panelStyle.Render(m.sidePanel.View())
 
 		main = lipgloss.JoinHorizontal(lipgloss.Top, left, rightWithBorder, sideContent)
 	} else {
-		_ = right // already rendered
 		main = lipgloss.JoinHorizontal(lipgloss.Top, left, previewStyle.Render(previewContent))
 	}
 
@@ -722,8 +714,7 @@ func (m Model) View() string {
 		return lipgloss.JoinVertical(lipgloss.Left, main, cmdView)
 	}
 
-	statusWidth := m.width
-	m.status.width = statusWidth
+	m.status.width = m.width
 	return lipgloss.JoinVertical(lipgloss.Left, main, m.status.View())
 }
 
