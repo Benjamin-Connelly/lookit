@@ -1,10 +1,20 @@
 package tui
 
+import (
+	"fmt"
+	"strings"
+
+	"github.com/charmbracelet/lipgloss"
+)
+
 // PreviewModel renders file content in the preview pane.
 type PreviewModel struct {
 	content  string
+	lines    []string
 	filePath string
 	scroll   int
+	width    int
+	height   int
 }
 
 // NewPreviewModel creates a preview pane.
@@ -16,6 +26,7 @@ func NewPreviewModel() PreviewModel {
 func (m *PreviewModel) SetContent(path, content string) {
 	m.filePath = path
 	m.content = content
+	m.lines = strings.Split(content, "\n")
 	m.scroll = 0
 }
 
@@ -30,12 +41,63 @@ func (m *PreviewModel) ScrollUp(lines int) {
 // ScrollDown scrolls the preview down.
 func (m *PreviewModel) ScrollDown(lines int) {
 	m.scroll += lines
+	maxScroll := m.maxScroll()
+	if m.scroll > maxScroll {
+		m.scroll = maxScroll
+	}
+}
+
+// ScrollToBottom scrolls to the end of content.
+func (m *PreviewModel) ScrollToBottom() {
+	m.scroll = m.maxScroll()
+}
+
+func (m *PreviewModel) maxScroll() int {
+	max := len(m.lines) - m.height
+	if max < 0 {
+		return 0
+	}
+	return max
 }
 
 // View renders the preview content.
 func (m PreviewModel) View() string {
 	if m.content == "" {
-		return "Select a file to preview"
+		placeholder := lipgloss.NewStyle().
+			Foreground(lipgloss.Color("240")).
+			Italic(true)
+		return placeholder.Render("Select a file to preview")
 	}
-	return m.content
+
+	if len(m.lines) == 0 {
+		return m.content
+	}
+
+	end := m.scroll + m.height
+	if end > len(m.lines) {
+		end = len(m.lines)
+	}
+	start := m.scroll
+	if start >= len(m.lines) {
+		start = len(m.lines) - 1
+	}
+	if start < 0 {
+		start = 0
+	}
+
+	visible := m.lines[start:end]
+	result := strings.Join(visible, "\n")
+
+	// Scroll position indicator if content exceeds viewport
+	if len(m.lines) > m.height && m.height > 0 {
+		pct := 0
+		maxS := m.maxScroll()
+		if maxS > 0 {
+			pct = m.scroll * 100 / maxS
+		}
+		indicator := lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
+		result += "\n" + indicator.Render(fmt.Sprintf("%s %d%%", strings.Repeat("─", 10), pct))
+	}
+
+	return result
 }

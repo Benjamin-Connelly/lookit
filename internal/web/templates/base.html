@@ -1,0 +1,39 @@
+{{define "base"}}<!DOCTYPE html>
+<html lang="en" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{.Title}} - lookit</title>
+<link rel="stylesheet" href="/__static/style.css">
+{{if .ExtraCSS}}<style>{{.ExtraCSS}}</style>{{end}}
+</head>
+<body>
+<header class="topbar">
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    <a href="/">lookit</a>
+    {{range .Breadcrumbs}}
+    <span class="sep">/</span>
+    <a href="{{.Href}}">{{.Name}}</a>
+    {{end}}
+  </nav>
+  <div class="topbar-actions">
+    {{if .GitBranch}}<span class="git-branch" title="Branch">{{.GitBranch}}</span>{{end}}
+    <button id="theme-toggle" title="Toggle theme" aria-label="Toggle theme">
+      <span class="theme-icon-light">&#9788;</span>
+      <span class="theme-icon-dark">&#9790;</span>
+    </button>
+    <button id="search-toggle" title="Search (Ctrl+K)" aria-label="Search">&#128269;</button>
+  </div>
+</header>
+<main>
+{{block "content" .}}{{end}}
+</main>
+<div id="search-overlay" class="search-overlay" hidden>
+  <div class="search-dialog">
+    <input type="text" id="search-input" placeholder="Search files..." autocomplete="off">
+    <ul id="search-results"></ul>
+  </div>
+</div>
+<script src="/__static/app.js"></script>
+</body>
+</html>{{end}}

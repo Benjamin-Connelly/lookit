@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/charmbracelet/lipgloss"
 )
@@ -11,6 +12,7 @@ type StatusBarModel struct {
 	filePath string
 	message  string
 	mode     string
+	width    int
 }
 
 // NewStatusBarModel creates a status bar.
@@ -37,20 +39,43 @@ func (m *StatusBarModel) SetMode(mode string) {
 
 // View renders the status bar.
 func (m StatusBarModel) View() string {
-	style := lipgloss.NewStyle().
-		Background(lipgloss.Color("235")).
-		Foreground(lipgloss.Color("252")).
+	modeStyle := lipgloss.NewStyle().
+		Background(lipgloss.Color("62")).
+		Foreground(lipgloss.Color("230")).
+		Bold(true).
 		Padding(0, 1)
 
-	left := m.mode
+	barStyle := lipgloss.NewStyle().
+		Background(lipgloss.Color("235")).
+		Foreground(lipgloss.Color("252"))
+
+	hintStyle := lipgloss.NewStyle().
+		Background(lipgloss.Color("235")).
+		Foreground(lipgloss.Color("240"))
+
+	modeStr := modeStyle.Render(m.mode)
+
+	var middle string
 	if m.filePath != "" {
-		left += " | " + m.filePath
+		middle = " " + m.filePath
 	}
 
 	right := ""
 	if m.message != "" {
-		right = m.message
+		right = m.message + " "
+	} else {
+		right = hintStyle.Render("tab:switch  /:filter  ?:help  q:quit ")
 	}
 
-	return style.Render(fmt.Sprintf("%-40s %s", left, right))
+	// Pad middle to fill available width
+	modeWidth := lipgloss.Width(modeStr)
+	rightWidth := lipgloss.Width(right)
+	middleWidth := m.width - modeWidth - rightWidth
+	if middleWidth < 0 {
+		middleWidth = 0
+	}
+
+	paddedMiddle := barStyle.Render(fmt.Sprintf("%-*s", middleWidth, middle))
+
+	return strings.Join([]string{modeStr, paddedMiddle, right}, "")
 }

@@ -1,0 +1,55 @@
+{{define "content"}}
+<div class="markdown-view">
+  <div class="markdown-main">
+    <article class="markdown-body">
+      {{.RenderedHTML}}
+    </article>
+  </div>
+  <aside class="markdown-sidebar">
+    {{if .Headings}}
+    <nav class="toc">
+      <h3>Contents</h3>
+      <ul>
+        {{range .Headings}}
+        <li class="toc-h{{.Level}}"><a href="#{{.Slug}}">{{.Text}}</a></li>
+        {{end}}
+      </ul>
+    </nav>
+    {{end}}
+    {{if .Backlinks}}
+    <div class="backlinks">
+      <h3>Backlinks</h3>
+      <ul>
+        {{range .Backlinks}}
+        <li><a href="/{{.Source}}">{{.Source}}</a> <span class="backlink-text">{{.Text}}</span></li>
+        {{end}}
+      </ul>
+    </div>
+    {{end}}
+    {{if .ForwardLinks}}
+    <div class="forward-links">
+      <h3>Links</h3>
+      <ul>
+        {{range .ForwardLinks}}
+        <li>
+          <a href="/{{.Target}}" {{if .Broken}}class="broken-link"{{end}}>{{.Text}}</a>
+        </li>
+        {{end}}
+      </ul>
+    </div>
+    {{end}}
+  </aside>
+</div>
+<script>
+(function(){
+  const es = new EventSource("/__events");
+  es.onmessage = function(e) {
+    const path = e.data;
+    if (path === "{{.RelPath}}" || path === "*") {
+      location.reload();
+    }
+  };
+})();
+</script>
+{{end}}
+{{template "base" .}}

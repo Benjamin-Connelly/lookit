@@ -1,0 +1,36 @@
+{{define "content"}}
+<div class="directory-listing">
+  <table class="file-table">
+    <thead>
+      <tr>
+        <th class="col-name">Name</th>
+        <th class="col-size">Size</th>
+        <th class="col-mod">Modified</th>
+        {{if .GitEnabled}}<th class="col-status">Status</th>{{end}}
+      </tr>
+    </thead>
+    <tbody>
+      {{if .ParentHref}}
+      <tr>
+        <td class="col-name"><span class="file-icon">&#128193;</span> <a href="{{.ParentHref}}">..</a></td>
+        <td class="col-size"></td>
+        <td class="col-mod"></td>
+        {{if .GitEnabled}}<td class="col-status"></td>{{end}}
+      </tr>
+      {{end}}
+      {{range .Entries}}
+      <tr>
+        <td class="col-name">
+          {{if .IsDir}}<span class="file-icon">&#128193;</span>{{else}}<span class="file-icon">&#128196;</span>{{end}}
+          <a href="/{{.Path}}">{{.Name}}</a>
+        </td>
+        <td class="col-size">{{if not .IsDir}}{{.SizeStr}}{{end}}</td>
+        <td class="col-mod">{{.ModTime}}</td>
+        {{if $.GitEnabled}}<td class="col-status">{{if .GitStatus}}<span class="git-badge git-{{.GitClass}}">{{.GitStatus}}</span>{{end}}</td>{{end}}
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+</div>
+{{end}}
+{{template "base" .}}

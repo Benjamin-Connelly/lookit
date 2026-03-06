@@ -1,0 +1,12 @@
+{{define "content"}}
+<div class="code-view">
+  <div class="code-header">
+    {{if .Language}}<span class="lang-badge">{{.Language}}</span>{{end}}
+    <span class="file-size">{{.SizeStr}}</span>
+  </div>
+  <div class="code-body">
+    {{.HighlightedHTML}}
+  </div>
+</div>
+{{end}}
+{{template "base" .}}

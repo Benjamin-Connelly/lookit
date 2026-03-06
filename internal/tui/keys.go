@@ -1,6 +1,11 @@
 package tui
 
-import "github.com/charmbracelet/bubbles/key"
+import (
+	"fmt"
+	"strings"
+
+	"github.com/charmbracelet/bubbles/key"
+)
 
 // KeyMap defines all keybindings for the TUI.
 type KeyMap struct {
@@ -57,4 +62,36 @@ func EmacsKeyMap() KeyMap {
 	km.Search = key.NewBinding(key.WithKeys("ctrl+s"), key.WithHelp("C-s", "search"))
 	km.Back = key.NewBinding(key.WithKeys("ctrl+b"), key.WithHelp("C-b", "back"))
 	return km
+}
+
+// Help returns a formatted help string showing all keybindings.
+func Help(km KeyMap) string {
+	var b strings.Builder
+	b.WriteString("Lookit - Key Bindings\n")
+	b.WriteString(strings.Repeat("=", 40) + "\n\n")
+
+	bindings := []key.Binding{
+		km.Quit, km.Up, km.Down, km.Enter, km.Back,
+		km.Tab, km.Search, km.Help, km.Follow, km.Backlinks,
+		km.TOC, km.Bookmark, km.Command, km.CopyLink, km.GitInfo,
+	}
+
+	for _, binding := range bindings {
+		h := binding.Help()
+		b.WriteString(fmt.Sprintf("  %-12s %s\n", h.Key, h.Desc))
+	}
+
+	b.WriteString("\nNavigation\n")
+	b.WriteString(strings.Repeat("-", 40) + "\n")
+	b.WriteString("  g/G          go to top/bottom\n")
+	b.WriteString("  pgup/pgdn    page up/down (preview)\n")
+	b.WriteString("  ctrl+u/d     half-page up/down\n")
+
+	b.WriteString("\nFilter Mode\n")
+	b.WriteString(strings.Repeat("-", 40) + "\n")
+	b.WriteString("  type         fuzzy filter files\n")
+	b.WriteString("  enter        open selected\n")
+	b.WriteString("  esc          clear filter\n")
+
+	return b.String()
 }
