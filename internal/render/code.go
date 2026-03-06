@@ -3,8 +3,8 @@ package render
 import (
 	"bytes"
 	"io"
+	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/alecthomas/chroma/v2"
 	"github.com/alecthomas/chroma/v2/formatters"
@@ -28,6 +28,11 @@ func NewCodeRenderer(theme string, terminal bool) *CodeRenderer {
 	}
 }
 
+// SetTheme changes the highlighting theme at runtime.
+func (r *CodeRenderer) SetTheme(theme string) {
+	r.theme = theme
+}
+
 // Highlight returns syntax-highlighted content for the given file.
 func (r *CodeRenderer) Highlight(filename, source string) (string, error) {
 	lexer := r.detectLexer(filename, source)
@@ -36,7 +41,48 @@ func (r *CodeRenderer) Highlight(filename, source string) (string, error) {
 
 	iterator, err := lexer.Tokenise(nil, source)
 	if err != nil {
-		return source, nil // Fall back to plain text
+		return source, nil
+	}
+
+	var buf bytes.Buffer
+	if err := formatter.Format(&buf, style, iterator); err != nil {
+		return source, nil
+	}
+
+	return buf.String(), nil
+}
+
+// HighlightFile reads a file and returns syntax-highlighted content.
+func (r *CodeRenderer) HighlightFile(filePath string) (string, error) {
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return "", err
+	}
+	return r.Highlight(filepath.Base(filePath), string(data))
+}
+
+// HighlightLines highlights source with a specific line range emphasized.
+// Lines outside startLine..endLine are rendered normally; lines within the
+// range receive Chroma's highlight style.
+func (r *CodeRenderer) HighlightLines(filename, source string, startLine, endLine int) (string, error) {
+	lexer := r.detectLexer(filename, source)
+	style := r.getStyle()
+
+	var formatter chroma.Formatter
+	if r.terminal {
+		// Terminal formatter doesn't support line highlighting; fall back to normal
+		formatter = r.getFormatter()
+	} else {
+		formatter = htmlfmt.New(
+			htmlfmt.WithClasses(true),
+			htmlfmt.WithLineNumbers(true),
+			htmlfmt.HighlightLines([][2]int{{startLine, endLine}}),
+		)
+	}
+
+	iterator, err := lexer.Tokenise(nil, source)
+	if err != nil {
+		return source, nil
 	}
 
 	var buf bytes.Buffer
@@ -62,8 +108,38 @@ func (r *CodeRenderer) HighlightToWriter(w io.Writer, filename, source string) e
 	return formatter.Format(w, style, iterator)
 }
 
+// GetLanguage detects the language for a filename.
+// Returns an empty string if no language is detected.
+func (r *CodeRenderer) GetLanguage(filename string) string {
+	lexer := lexers.Match(filename)
+	if lexer == nil {
+		return ""
+	}
+	cfg := lexer.Config()
+	if cfg == nil {
+		return ""
+	}
+	return cfg.Name
+}
+
+// ListLanguages returns all supported language names.
+func (r *CodeRenderer) ListLanguages() []string {
+	return lexers.Names(false)
+}
+
+// CSS returns the Chroma CSS classes for the current theme (HTML mode only).
+func (r *CodeRenderer) CSS() (string, error) {
+	style := r.getStyle()
+	formatter := htmlfmt.New(htmlfmt.WithClasses(true))
+
+	var buf bytes.Buffer
+	if err := formatter.WriteCSS(&buf, style); err != nil {
+		return "", err
+	}
+	return buf.String(), nil
+}
+
 func (r *CodeRenderer) detectLexer(filename, source string) chroma.Lexer {
-	ext := strings.ToLower(filepath.Ext(filename))
 	lexer := lexers.Match(filename)
 	if lexer == nil {
 		lexer = lexers.Analyse(source)
@@ -71,7 +147,6 @@ func (r *CodeRenderer) detectLexer(filename, source string) chroma.Lexer {
 	if lexer == nil {
 		lexer = lexers.Fallback
 	}
-	_ = ext
 	return chroma.Coalesce(lexer)
 }
 

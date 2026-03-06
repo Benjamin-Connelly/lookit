@@ -1,6 +1,10 @@
 package index
 
 import (
+	"os"
+	"path/filepath"
+	"regexp"
+	"strings"
 	"sync"
 )
 
@@ -91,4 +95,147 @@ func (g *LinkGraph) removeBacklink(target, source string) {
 		}
 	}
 	g.backward[target] = filtered
+}
+
+var (
+	// Matches [text](target) markdown links
+	mdLinkRe = regexp.MustCompile(`\[([^\]]+)\]\(([^)]+)\)`)
+	// Matches [[wikilink]] style links
+	wikiLinkRe = regexp.MustCompile(`\[\[([^\]]+)\]\]`)
+)
+
+// ExtractLinks parses markdown content for links, resolves relative paths,
+// and marks broken links based on whether targets exist in the index.
+func ExtractLinks(filePath, content string, idx *Index) []Link {
+	sourceDir := filepath.Dir(filePath)
+	lines := strings.Split(content, "\n")
+	var links []Link
+
+	for lineNum, line := range lines {
+		// Standard markdown links: [text](target)
+		for _, match := range mdLinkRe.FindAllStringSubmatch(line, -1) {
+			text := match[1]
+			target := match[2]
+
+			// Strip fragment anchors
+			if i := strings.Index(target, "#"); i >= 0 {
+				target = target[:i]
+			}
+			target = strings.TrimSpace(target)
+
+			// Skip external URLs and empty targets
+			if target == "" || strings.Contains(target, "://") || strings.HasPrefix(target, "mailto:") {
+				continue
+			}
+
+			resolved := resolveRelPath(sourceDir, target, idx.Root())
+			broken := idx.Lookup(resolved) == nil
+
+			links = append(links, Link{
+				Source: filePath,
+				Target: resolved,
+				Text:   text,
+				Line:   lineNum + 1,
+				Broken: broken,
+			})
+		}
+
+		// Wikilinks: [[target]] or [[target|text]]
+		for _, match := range wikiLinkRe.FindAllStringSubmatch(line, -1) {
+			raw := match[1]
+			text := raw
+			target := raw
+
+			// Handle [[target|display text]] syntax
+			if i := strings.Index(raw, "|"); i >= 0 {
+				target = raw[:i]
+				text = raw[i+1:]
+			}
+
+			target = strings.TrimSpace(target)
+			if target == "" {
+				continue
+			}
+
+			// Try to resolve wikilink: look for matching file in the index
+			resolved := resolveWikilink(target, idx)
+			broken := resolved == "" || idx.Lookup(resolved) == nil
+
+			if resolved == "" {
+				resolved = target
+			}
+
+			links = append(links, Link{
+				Source: filePath,
+				Target: resolved,
+				Text:   strings.TrimSpace(text),
+				Line:   lineNum + 1,
+				Broken: broken,
+			})
+		}
+	}
+
+	return links
+}
+
+// BuildFromIndex reads all markdown files from the index, extracts links,
+// and populates the graph.
+func (g *LinkGraph) BuildFromIndex(idx *Index) {
+	mdFiles := idx.MarkdownFiles()
+	for _, entry := range mdFiles {
+		content, err := os.ReadFile(entry.Path)
+		if err != nil {
+			continue
+		}
+		links := ExtractLinks(entry.RelPath, string(content), idx)
+		g.SetLinks(entry.RelPath, links)
+	}
+}
+
+// resolveRelPath resolves a relative link target against a source directory,
+// returning a path relative to the index root.
+func resolveRelPath(sourceDir, target, root string) string {
+	// Join source dir with target
+	joined := filepath.Join(sourceDir, target)
+	// Clean the path
+	cleaned := filepath.Clean(joined)
+	// Ensure no traversal above root
+	if strings.HasPrefix(cleaned, "..") {
+		return target
+	}
+	return cleaned
+}
+
+// resolveWikilink tries to find a matching file for a wikilink target.
+// It searches for exact matches and common markdown extensions.
+func resolveWikilink(target string, idx *Index) string {
+	// Normalize: replace spaces with path-friendly chars
+	normalized := strings.ReplaceAll(target, " ", "-")
+
+	candidates := []string{
+		target,
+		normalized,
+		target + ".md",
+		normalized + ".md",
+		target + ".markdown",
+		normalized + ".markdown",
+	}
+
+	for _, candidate := range candidates {
+		if entry := idx.Lookup(candidate); entry != nil {
+			return candidate
+		}
+	}
+
+	// Try case-insensitive search through all entries
+	lowerTarget := strings.ToLower(normalized)
+	entries := idx.Entries()
+	for _, e := range entries {
+		base := strings.ToLower(strings.TrimSuffix(filepath.Base(e.RelPath), filepath.Ext(e.RelPath)))
+		if base == lowerTarget {
+			return e.RelPath
+		}
+	}
+
+	return ""
 }

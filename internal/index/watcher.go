@@ -2,32 +2,44 @@ package index
 
 import (
 	"log"
+	"os"
 	"path/filepath"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/fsnotify/fsnotify"
 )
 
 // Watcher monitors the filesystem for changes and re-indexes affected files.
 type Watcher struct {
-	index   *Index
-	watcher *fsnotify.Watcher
-	onChange func(path string) // callback for file changes
-	done    chan struct{}
+	index     *Index
+	graph     *LinkGraph
+	watcher   *fsnotify.Watcher
+	onChange  func(path string) // callback for file changes
+	done      chan struct{}
+	debounce  time.Duration
+	mu        sync.Mutex
+	timer     *time.Timer
+	pending   map[string]struct{}
 }
 
 // NewWatcher creates a file watcher that updates the index on changes.
-func NewWatcher(idx *Index, onChange func(path string)) (*Watcher, error) {
+// If graph is non-nil, it will be rebuilt when markdown files change.
+func NewWatcher(idx *Index, graph *LinkGraph, onChange func(path string)) (*Watcher, error) {
 	fw, err := fsnotify.NewWatcher()
 	if err != nil {
 		return nil, err
 	}
 
 	w := &Watcher{
-		index:   idx,
-		watcher: fw,
+		index:    idx,
+		graph:    graph,
+		watcher:  fw,
 		onChange: onChange,
-		done:    make(chan struct{}),
+		done:     make(chan struct{}),
+		debounce: 100 * time.Millisecond,
+		pending:  make(map[string]struct{}),
 	}
 
 	go w.loop()
@@ -53,18 +65,21 @@ func (w *Watcher) loop() {
 			if !ok {
 				return
 			}
-			if event.Has(fsnotify.Write) || event.Has(fsnotify.Create) || event.Has(fsnotify.Remove) {
+			if event.Has(fsnotify.Write) || event.Has(fsnotify.Create) || event.Has(fsnotify.Remove) || event.Has(fsnotify.Rename) {
+				// If a new directory was created, watch it
+				if event.Has(fsnotify.Create) {
+					w.maybeWatchDir(event.Name)
+				}
+
 				rel, err := filepath.Rel(w.index.Root(), event.Name)
 				if err != nil {
 					continue
 				}
-				// Re-build index (could be optimized to incremental)
-				if err := w.index.Build(); err != nil {
-					log.Printf("watcher: re-index failed: %v", err)
-				}
-				if w.onChange != nil {
-					w.onChange(rel)
-				}
+
+				w.mu.Lock()
+				w.pending[rel] = struct{}{}
+				w.scheduleBuild()
+				w.mu.Unlock()
 			}
 		case err, ok := <-w.watcher.Errors:
 			if !ok {
@@ -74,6 +89,60 @@ func (w *Watcher) loop() {
 		case <-w.done:
 			return
 		}
+	}
+}
+
+// scheduleBuild resets the debounce timer. Must be called with w.mu held.
+func (w *Watcher) scheduleBuild() {
+	if w.timer != nil {
+		w.timer.Stop()
+	}
+	w.timer = time.AfterFunc(w.debounce, w.doBuild)
+}
+
+// doBuild re-indexes and notifies callbacks for pending changes.
+func (w *Watcher) doBuild() {
+	w.mu.Lock()
+	paths := make([]string, 0, len(w.pending))
+	hasMd := false
+	for p := range w.pending {
+		paths = append(paths, p)
+		if isMarkdown(filepath.Base(p)) {
+			hasMd = true
+		}
+	}
+	w.pending = make(map[string]struct{})
+	w.mu.Unlock()
+
+	if err := w.index.Rebuild(); err != nil {
+		log.Printf("watcher: re-index failed: %v", err)
+		return
+	}
+
+	// Rebuild link graph if markdown files changed
+	if hasMd && w.graph != nil {
+		w.graph.BuildFromIndex(w.index)
+	}
+
+	if w.onChange != nil {
+		for _, rel := range paths {
+			w.onChange(rel)
+		}
+	}
+}
+
+// maybeWatchDir adds a new directory to the watcher if it exists and is not hidden.
+func (w *Watcher) maybeWatchDir(path string) {
+	info, err := os.Stat(path)
+	if err != nil || !info.IsDir() {
+		return
+	}
+	name := filepath.Base(path)
+	if strings.HasPrefix(name, ".") || hiddenDirs[name] {
+		return
+	}
+	if err := w.watcher.Add(path); err != nil {
+		log.Printf("watcher: failed to watch new dir %s: %v", path, err)
 	}
 }
 
