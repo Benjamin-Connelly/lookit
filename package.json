@@ -39,6 +39,9 @@
     "markdown-it": "^14.0.0",
     "markdown-it-highlightjs": "^4.1.0"
   },
+  "scripts": {
+    "test": "node --test test/*.test.js"
+  },
   "engines": {
     "node": ">=18.0.0"
   }

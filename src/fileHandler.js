@@ -2,6 +2,11 @@
 const path = require('path');
 const fs = require('fs').promises;
 const { isBinaryFile } = require('isbinaryfile');
+const crypto = require('crypto');
+
+function generateETag(content) {
+  return '"' + crypto.createHash('md5').update(content).digest('hex').slice(0, 16) + '"';
+}
 
 // File extension sets
 const CODE_EXTENSIONS = new Set([
@@ -236,10 +241,23 @@ async function handleDirectory(filePath, urlPath, stats, res, context) {
       showAll: context.args.showAll || false,
       escapeHtml,
       currentBranch,
-      repoStats
+      repoStats,
+      theme: context.theme,
+      sort: context.sort
     });
 
-    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+    const etag = generateETag(html);
+    if (context.req.headers['if-none-match'] === etag) {
+      res.writeHead(304);
+      res.end();
+      return;
+    }
+
+    res.writeHead(200, {
+      'Content-Type': 'text/html; charset=utf-8',
+      'ETag': etag,
+      'Cache-Control': 'no-cache'
+    });
     res.end(html);
   } catch (err) {
     res.writeHead(500, { 'Content-Type': 'text/plain' });
@@ -266,10 +284,22 @@ async function handleMarkdown(filePath, urlPath, stats, res, context) {
       fileName,
       html,
       urlPath,
-      escapeHtml
+      escapeHtml,
+      theme: context.theme
     });
 
-    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+    const etag = generateETag(fullHtml);
+    if (context.req.headers['if-none-match'] === etag) {
+      res.writeHead(304);
+      res.end();
+      return;
+    }
+
+    res.writeHead(200, {
+      'Content-Type': 'text/html; charset=utf-8',
+      'ETag': etag,
+      'Cache-Control': 'no-cache'
+    });
     res.end(fullHtml);
   } catch (err) {
     res.writeHead(500, { 'Content-Type': 'text/plain' });
@@ -280,6 +310,7 @@ async function handleMarkdown(filePath, urlPath, stats, res, context) {
 async function handleCode(filePath, urlPath, stats, res, context) {
   const { createCodeTemplate, getLanguageFromExtension } = require('./templates/code.js');
   const { escapeHtml } = require('./utils.js');
+  const { findGitRoot, getBlame } = require('./gitHandler.js');
 
   try {
     // Read the file content
@@ -309,16 +340,33 @@ async function handleCode(filePath, urlPath, stats, res, context) {
       highlightedCode = result.value;
     }
 
+    // Get git blame data
+    const gitRoot = findGitRoot(path.dirname(filePath));
+    const blameData = gitRoot ? getBlame(filePath, gitRoot) : null;
+
     // Generate HTML using the code template
     const html = createCodeTemplate({
       fileName,
       code: highlightedCode,
       urlPath,
       language: language || 'plaintext',
-      escapeHtml
+      escapeHtml,
+      blameData,
+      theme: context.theme
     });
 
-    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+    const etag = generateETag(html);
+    if (context.req.headers['if-none-match'] === etag) {
+      res.writeHead(304);
+      res.end();
+      return;
+    }
+
+    res.writeHead(200, {
+      'Content-Type': 'text/html; charset=utf-8',
+      'ETag': etag,
+      'Cache-Control': 'no-cache'
+    });
     res.end(html);
   } catch (err) {
     res.writeHead(500, { 'Content-Type': 'text/plain' });
@@ -358,16 +406,46 @@ async function handleStatic(filePath, urlPath, stats, res, context, fileType) {
   const ext = path.extname(filePath).toLowerCase();
   const mimeType = mimeTypes[ext] || 'application/octet-stream';
 
-  try {
-    const content = await fs.readFile(filePath);
-    res.writeHead(200, {
-      'Content-Type': mimeType,
-      'Content-Length': content.length
+  // Generate caching headers
+  const etag = '"' + stats.size.toString(16) + '-' + stats.mtimeMs.toString(16) + '"';
+  const lastModified = stats.mtime.toUTCString();
+
+  // Check for conditional request
+  if (context.req.headers['if-none-match'] === etag ||
+      context.req.headers['if-modified-since'] === lastModified) {
+    res.writeHead(304);
+    res.end();
+    return;
+  }
+
+  const headers = {
+    'Content-Type': mimeType,
+    'Content-Length': stats.size,
+    'ETag': etag,
+    'Last-Modified': lastModified,
+    'Cache-Control': 'public, max-age=0, must-revalidate'
+  };
+
+  if (stats.size > 1024 * 1024) {
+    // Stream large files
+    res.writeHead(200, headers);
+    const stream = require('fs').createReadStream(filePath);
+    stream.pipe(res);
+    stream.on('error', (err) => {
+      if (!res.headersSent) {
+        res.writeHead(500, { 'Content-Type': 'text/plain' });
+      }
+      res.end(`Error: ${err.message}`);
     });
-    res.end(content);
-  } catch (err) {
-    res.writeHead(500, { 'Content-Type': 'text/plain' });
-    res.end(`Error reading file: ${err.message}`);
+  } else {
+    try {
+      const content = await fs.readFile(filePath);
+      res.writeHead(200, headers);
+      res.end(content);
+    } catch (err) {
+      res.writeHead(500, { 'Content-Type': 'text/plain' });
+      res.end(`Error reading file: ${err.message}`);
+    }
   }
 }
 
@@ -380,21 +458,14 @@ async function handleBinary(filePath, urlPath, stats, res, context) {
   const shouldDownload = url.searchParams.get('download') === 'true';
 
   if (shouldDownload) {
-    // Serve file for download
-    try {
-      const content = await fs.readFile(filePath);
-      const fileName = path.basename(filePath);
-
-      res.writeHead(200, {
-        'Content-Type': 'application/octet-stream',
-        'Content-Disposition': `attachment; filename="${fileName}"`,
-        'Content-Length': content.length
-      });
-      res.end(content);
-    } catch (err) {
-      res.writeHead(500, { 'Content-Type': 'text/plain' });
-      res.end(`Error reading file: ${err.message}`);
-    }
+    // Stream file for download
+    const fileName = path.basename(filePath);
+    res.writeHead(200, {
+      'Content-Type': 'application/octet-stream',
+      'Content-Disposition': `attachment; filename="${fileName}"`,
+      'Content-Length': stats.size
+    });
+    require('fs').createReadStream(filePath).pipe(res);
   } else {
     // Show preview card with metadata
     try {

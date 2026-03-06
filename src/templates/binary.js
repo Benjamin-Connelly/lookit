@@ -109,7 +109,7 @@ function createBinaryTemplate({ fileName, filePath, fileSize, modified, urlPath,
   const fileType = ext ? ext.toUpperCase() : 'Unknown';
 
   const content = `
-    <div class="binary-card">
+    <div class="binary-card" role="article">
       <div class="binary-icon">${icon}</div>
       <div class="binary-filename">${escapeHtml(fileName)}</div>
       <div class="binary-message">Binary file - cannot preview</div>
@@ -130,8 +130,8 @@ function createBinaryTemplate({ fileName, filePath, fileSize, modified, urlPath,
       </div>
 
       <div class="binary-actions">
-        <button class="btn btn-secondary" onclick="copyPath()">Copy Path</button>
-        <a href="${escapeHtml(urlPath)}?download=true" class="btn btn-primary">Download</a>
+        <button class="btn btn-secondary" onclick="copyPath()" aria-label="Copy file path to clipboard">Copy Path</button>
+        <a href="${escapeHtml(urlPath)}?download=true" class="btn btn-primary" aria-label="Download file">Download</a>
       </div>
     </div>
 
@@ -142,7 +142,7 @@ function createBinaryTemplate({ fileName, filePath, fileSize, modified, urlPath,
           const btn = event.target;
           const originalText = btn.textContent;
           btn.textContent = 'Copied!';
-          btn.style.backgroundColor = '#28a745';
+          btn.style.backgroundColor = 'var(--accent-green)';
           setTimeout(() => {
             btn.textContent = originalText;
             btn.style.backgroundColor = '';
@@ -159,8 +159,8 @@ function createBinaryTemplate({ fileName, filePath, fileSize, modified, urlPath,
       max-width: 600px;
       margin: 3rem auto;
       padding: 3rem 2rem;
-      background: white;
-      border: 2px solid #e9ecef;
+      background: var(--bg-primary);
+      border: 2px solid var(--border-primary);
       border-radius: 12px;
       text-align: center;
       box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
@@ -175,19 +175,19 @@ function createBinaryTemplate({ fileName, filePath, fileSize, modified, urlPath,
     .binary-filename {
       font-size: 1.5rem;
       font-weight: 600;
-      color: #212529;
+      color: var(--text-primary);
       margin-bottom: 0.5rem;
       word-break: break-all;
     }
 
     .binary-message {
-      color: #6c757d;
+      color: var(--text-secondary);
       font-size: 1rem;
       margin-bottom: 2rem;
     }
 
     .binary-info {
-      background: #f8f9fa;
+      background: var(--bg-tertiary);
       border-radius: 8px;
       padding: 1.5rem;
       margin-bottom: 2rem;
@@ -198,7 +198,7 @@ function createBinaryTemplate({ fileName, filePath, fileSize, modified, urlPath,
       display: flex;
       justify-content: space-between;
       padding: 0.75rem 0;
-      border-bottom: 1px solid #e9ecef;
+      border-bottom: 1px solid var(--border-primary);
     }
 
     .info-row:last-child {
@@ -207,11 +207,11 @@ function createBinaryTemplate({ fileName, filePath, fileSize, modified, urlPath,
 
     .info-label {
       font-weight: 600;
-      color: #495057;
+      color: var(--text-secondary);
     }
 
     .info-value {
-      color: #212529;
+      color: var(--text-primary);
       font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace;
       font-size: 0.9rem;
     }
@@ -235,25 +235,23 @@ function createBinaryTemplate({ fileName, filePath, fileSize, modified, urlPath,
     }
 
     .btn-primary {
-      background: #007bff;
-      color: white;
+      background: var(--accent-blue);
+      color: var(--bg-primary);
     }
 
     .btn-primary:hover {
-      background: #0056b3;
+      background: var(--accent-blue-hover);
       transform: translateY(-1px);
-      box-shadow: 0 2px 4px rgba(0, 123, 255, 0.3);
     }
 
     .btn-secondary {
-      background: #6c757d;
-      color: white;
+      background: var(--text-secondary);
+      color: var(--bg-primary);
     }
 
     .btn-secondary:hover {
-      background: #5a6268;
+      background: var(--text-secondary);
       transform: translateY(-1px);
-      box-shadow: 0 2px 4px rgba(108, 117, 125, 0.3);
     }
   `;
 

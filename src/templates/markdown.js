@@ -13,6 +13,31 @@ const { createBaseTemplate, generateBreadcrumb } = require('./base.js');
 function createMarkdownTemplate({ fileName, html, urlPath, escapeHtml }) {
   const breadcrumb = generateBreadcrumb(urlPath, escapeHtml);
 
+  const liveReloadScript = `
+<script>
+(function() {
+  const currentPath = ${JSON.stringify(urlPath)};
+  function connect() {
+    const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const ws = new WebSocket(protocol + '//' + location.host + '/__ws');
+    ws.onmessage = function(event) {
+      const changedPath = event.data;
+      if (currentPath === changedPath || currentPath.endsWith(changedPath)) {
+        location.reload();
+      }
+    };
+    ws.onclose = function() {
+      setTimeout(connect, 3000);
+    };
+    ws.onerror = function() {
+      ws.close();
+    };
+  }
+  connect();
+})();
+</script>
+`;
+
   const content = `
     <div class="file-header">
       <div class="file-icon">📝</div>
@@ -23,9 +48,12 @@ function createMarkdownTemplate({ fileName, html, urlPath, escapeHtml }) {
         </div>
       </div>
     </div>
-    <div class="markdown-body">
-      ${html}
-    </div>
+    <article>
+      <div class="markdown-body" aria-label="Document content">
+        ${html}
+      </div>
+    </article>
+    ${liveReloadScript}
   `;
 
   const extraStyles = `
@@ -34,9 +62,9 @@ function createMarkdownTemplate({ fileName, html, urlPath, escapeHtml }) {
       align-items: center;
       gap: 1rem;
       padding: 1.5rem;
-      background: #f8f9fa;
+      background: var(--bg-tertiary);
       border-radius: 8px 8px 0 0;
-      border-bottom: 2px solid #e9ecef;
+      border-bottom: 2px solid var(--border-primary);
     }
 
     .file-icon {
@@ -51,7 +79,7 @@ function createMarkdownTemplate({ fileName, html, urlPath, escapeHtml }) {
     .file-name {
       font-size: 1.25rem;
       font-weight: 600;
-      color: #212529;
+      color: var(--text-primary);
       margin-bottom: 0.5rem;
     }
 
@@ -67,8 +95,8 @@ function createMarkdownTemplate({ fileName, html, urlPath, escapeHtml }) {
       border-radius: 12px;
       font-size: 0.75rem;
       font-weight: 600;
-      color: white;
-      background-color: #083fa1;
+      color: var(--bg-primary);
+      background-color: var(--accent-blue);
       text-transform: uppercase;
       letter-spacing: 0.5px;
     }
@@ -76,9 +104,9 @@ function createMarkdownTemplate({ fileName, html, urlPath, escapeHtml }) {
     /* GitHub-style markdown rendering */
     .markdown-body {
       padding: 2rem;
-      background: white;
+      background: var(--bg-primary);
       border-radius: 0 0 8px 8px;
-      color: #24292f;
+      color: var(--text-primary);
       font-size: 16px;
       line-height: 1.6;
     }
@@ -94,19 +122,19 @@ function createMarkdownTemplate({ fileName, html, urlPath, escapeHtml }) {
       margin-bottom: 16px;
       font-weight: 600;
       line-height: 1.25;
-      color: #24292f;
+      color: var(--text-primary);
     }
 
     .markdown-body h1 {
       font-size: 2em;
       padding-bottom: 0.3em;
-      border-bottom: 1px solid #d0d7de;
+      border-bottom: 1px solid var(--border-primary);
     }
 
     .markdown-body h2 {
       font-size: 1.5em;
       padding-bottom: 0.3em;
-      border-bottom: 1px solid #d0d7de;
+      border-bottom: 1px solid var(--border-primary);
     }
 
     .markdown-body h3 {
@@ -123,7 +151,7 @@ function createMarkdownTemplate({ fileName, html, urlPath, escapeHtml }) {
 
     .markdown-body h6 {
       font-size: 0.85em;
-      color: #57606a;
+      color: var(--text-secondary);
     }
 
     /* Paragraphs */
@@ -134,7 +162,7 @@ function createMarkdownTemplate({ fileName, html, urlPath, escapeHtml }) {
 
     /* Links */
     .markdown-body a {
-      color: #0969da;
+      color: var(--accent-blue);
       text-decoration: none;
     }
 
@@ -178,7 +206,7 @@ function createMarkdownTemplate({ fileName, html, urlPath, escapeHtml }) {
       overflow: auto;
       font-size: 85%;
       line-height: 1.45;
-      background-color: #0d1117;
+      background-color: var(--bg-primary);
       border-radius: 6px;
     }
 
@@ -192,7 +220,7 @@ function createMarkdownTemplate({ fileName, html, urlPath, escapeHtml }) {
       background-color: transparent;
       border: 0;
       font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', 'source-code-pro', monospace;
-      color: #c9d1d9;
+      color: var(--text-primary);
     }
 
     /* Inline code */
@@ -220,23 +248,23 @@ function createMarkdownTemplate({ fileName, html, urlPath, escapeHtml }) {
     .markdown-body table th {
       font-weight: 600;
       padding: 6px 13px;
-      border: 1px solid #d0d7de;
-      background-color: #f6f8fa;
-      color: #24292f;
+      border: 1px solid var(--border-primary);
+      background-color: var(--bg-tertiary);
+      color: var(--text-primary);
     }
 
     .markdown-body table td {
       padding: 6px 13px;
-      border: 1px solid #d0d7de;
+      border: 1px solid var(--border-primary);
     }
 
     .markdown-body table tr {
-      background-color: #ffffff;
-      border-top: 1px solid #d0d7de;
+      background-color: var(--bg-primary);
+      border-top: 1px solid var(--border-primary);
     }
 
     .markdown-body table tr:nth-child(2n) {
-      background-color: #f6f8fa;
+      background-color: var(--bg-tertiary);
     }
 
     /* Blockquotes */
@@ -244,8 +272,8 @@ function createMarkdownTemplate({ fileName, html, urlPath, escapeHtml }) {
       margin: 0;
       margin-bottom: 16px;
       padding: 0 1em;
-      color: #57606a;
-      border-left: 0.25em solid #d0d7de;
+      color: var(--text-secondary);
+      border-left: 0.25em solid var(--border-primary);
     }
 
     .markdown-body blockquote > :first-child {
@@ -261,7 +289,7 @@ function createMarkdownTemplate({ fileName, html, urlPath, escapeHtml }) {
       height: 0.25em;
       padding: 0;
       margin: 24px 0;
-      background-color: #d0d7de;
+      background-color: var(--border-primary);
       border: 0;
     }
 

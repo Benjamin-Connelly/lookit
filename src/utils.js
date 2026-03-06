@@ -36,6 +36,11 @@ function parseArgs(argv) {
       args.stopAll = true;
     } else if (arg === '--stop' && argv[i + 1]) {
       args.stop = parseInt(argv[++i], 10);
+    } else if (arg === '--theme' && argv[i + 1]) {
+      const val = argv[++i];
+      if (['light', 'dark', 'auto'].includes(val)) {
+        args.theme = val;
+      }
     } else if (arg === '--version' || arg === '-v') {
       const pkg = require('../package.json');
       console.log(pkg.version);
@@ -66,6 +71,7 @@ OPTIONS:
   --no-dirlist         Disable directory listings
   --cert <path>        Path to TLS certificate (default: ~/.config/lookit/localhost.pem)
   --key <path>         Path to TLS private key (default: ~/.config/lookit/localhost-key.pem)
+  --theme <mode>       Theme: light, dark, auto (default: auto)
   -q, --quiet          Suppress TLS certificate warnings
   -l, --list           List all running lookit instances
   --stop <port>        Stop lookit instance on specific port

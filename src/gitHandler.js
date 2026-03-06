@@ -361,6 +361,60 @@ function batchGetLastCommits(filePaths, repoRoot) {
 }
 
 /**
+ * Get git blame data for a file
+ * @param {string} filePath - Full path to file
+ * @param {string} repoRoot - Repository root path
+ * @returns {Array|null} Array of {hash, author, date, line, lineNumber} or null
+ */
+function getBlame(filePath, repoRoot) {
+  if (!repoRoot) return null;
+
+  const cacheKey = `blame:${filePath}`;
+
+  return getCached(cacheKey, () => {
+    try {
+      const relativePath = path.relative(repoRoot, filePath);
+      const output = execFileSync('git', ['blame', '--porcelain', relativePath], {
+        cwd: repoRoot,
+        encoding: 'utf8',
+        stdio: ['pipe', 'pipe', 'ignore'],
+        maxBuffer: 10 * 1024 * 1024
+      });
+
+      const lines = output.split('\n');
+      const blameData = [];
+      let currentEntry = {};
+      let lineNumber = 0;
+
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+
+        if (/^[0-9a-f]{40}/.test(line)) {
+          const parts = line.split(' ');
+          currentEntry = {
+            hash: parts[0],
+            lineNumber: parseInt(parts[2]) || ++lineNumber
+          };
+        } else if (line.startsWith('author ')) {
+          currentEntry.author = line.substring(7);
+        } else if (line.startsWith('author-time ')) {
+          const timestamp = parseInt(line.substring(12));
+          const date = new Date(timestamp * 1000);
+          currentEntry.date = date.toISOString().split('T')[0];
+        } else if (line.startsWith('\t')) {
+          currentEntry.line = line.substring(1);
+          blameData.push({ ...currentEntry });
+        }
+      }
+
+      return blameData;
+    } catch {
+      return null;
+    }
+  }, COMMIT_CACHE_TTL);
+}
+
+/**
  * Clear all git cache (useful for testing)
  */
 function clearCache() {
@@ -376,5 +430,6 @@ module.exports = {
   getLastCommit,
   getRepoStats,
   batchGetLastCommits,
+  getBlame,
   clearCache
 };

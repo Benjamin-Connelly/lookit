@@ -152,17 +152,31 @@ function renderRepoStats(stats, escapeHtml) {
  * @param {Object} options.repoStats - Repository statistics
  * @returns {string} Complete HTML document
  */
-function createDirectoryTemplate({ dirName, entries, urlPath, showAll, escapeHtml, currentBranch, repoStats }) {
-  const breadcrumb = generateBreadcrumb(urlPath, escapeHtml);
+function createDirectoryTemplate({ dirName, entries, urlPath, showAll, escapeHtml, currentBranch, repoStats, sort }) {
+  const breadcrumb = `<nav aria-label="Breadcrumb">${generateBreadcrumb(urlPath, escapeHtml)}</nav>`;
 
-  // Sort entries: directories first, then alphabetically
+  const sortMode = sort || 'name';
+
+  // Sort entries: directories first, then by selected sort mode
   const sortedEntries = [...entries].sort((a, b) => {
-    // Directories before files
+    // Directories always first
     if (a.isDirectory && !b.isDirectory) return -1;
     if (!a.isDirectory && b.isDirectory) return 1;
 
-    // Then alphabetically by name (case-insensitive)
-    return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
+    switch (sortMode) {
+      case 'date':
+        return new Date(b.mtime) - new Date(a.mtime);
+      case 'size':
+        return b.size - a.size;
+      case 'type': {
+        const extA = a.name.includes('.') ? a.name.split('.').pop().toLowerCase() : '';
+        const extB = b.name.includes('.') ? b.name.split('.').pop().toLowerCase() : '';
+        return extA.localeCompare(extB) || a.name.toLowerCase().localeCompare(b.name.toLowerCase());
+      }
+      case 'name':
+      default:
+        return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
+    }
   });
 
   // Check if all entries have the same commit
@@ -180,7 +194,7 @@ function createDirectoryTemplate({ dirName, entries, urlPath, showAll, escapeHtm
 
   if (!isRoot) {
     fileListHtml += `
-      <a href=".." class="file-entry parent-dir">
+      <a href=".." class="file-entry parent-dir" role="listitem">
         <div class="file-icon">📁</div>
         <div class="file-info">
           <div class="file-name">..</div>
@@ -202,7 +216,7 @@ function createDirectoryTemplate({ dirName, entries, urlPath, showAll, escapeHtm
     const showCommit = !commonCommit && entry.lastCommit;
 
     fileListHtml += `
-      <a href="${escapeHtml(entry.url)}" class="file-entry${ignoredClass}">
+      <a href="${escapeHtml(entry.url)}" class="file-entry${ignoredClass}" role="listitem">
         <div class="file-icon">${icon}</div>
         <div class="file-info">
           <div class="file-name">
@@ -234,11 +248,65 @@ function createDirectoryTemplate({ dirName, entries, urlPath, showAll, escapeHtm
         </div>
       </div>
     </div>
+    <div class="sort-controls" aria-label="Sort options">
+      <span class="sort-label">Sort:</span>
+      <a href="?sort=name" class="sort-btn ${sortMode === 'name' ? 'active' : ''}">Name</a>
+      <a href="?sort=date" class="sort-btn ${sortMode === 'date' ? 'active' : ''}">Date</a>
+      <a href="?sort=size" class="sort-btn ${sortMode === 'size' ? 'active' : ''}">Size</a>
+      <a href="?sort=type" class="sort-btn ${sortMode === 'type' ? 'active' : ''}">Type</a>
+    </div>
     ${hasGitStatus ? renderGitLegend() : ''}
     ${renderRepoStats(repoStats, escapeHtml)}
-    <div class="file-list">
+    <div class="file-list" role="list">
       ${fileListHtml}
     </div>
+    <script>
+    (function() {
+      var entries = document.querySelectorAll('.file-entry');
+      var focusIndex = -1;
+
+      function setFocus(index) {
+        entries.forEach(function(e) { e.classList.remove('focused'); });
+        if (index >= 0 && index < entries.length) {
+          focusIndex = index;
+          entries[index].classList.add('focused');
+          entries[index].scrollIntoView({ block: 'nearest' });
+        }
+      }
+
+      document.addEventListener('keydown', function(e) {
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+        switch(e.key) {
+          case 'ArrowDown':
+          case 'j':
+            e.preventDefault();
+            setFocus(Math.min(focusIndex + 1, entries.length - 1));
+            break;
+          case 'ArrowUp':
+          case 'k':
+            e.preventDefault();
+            setFocus(Math.max(focusIndex - 1, 0));
+            break;
+          case 'Enter':
+            if (focusIndex >= 0) {
+              entries[focusIndex].click();
+            }
+            break;
+          case 'Backspace':
+            var parentLink = document.querySelector('.file-entry.parent-dir');
+            if (parentLink) parentLink.click();
+            break;
+          case '/':
+            e.preventDefault();
+            var searchInput = document.getElementById('search-input');
+            if (searchInput) searchInput.focus();
+            if (typeof openSearch === 'function') openSearch();
+            break;
+        }
+      });
+    })();
+    </script>
   `;
 
   const extraStyles = `
@@ -247,9 +315,9 @@ function createDirectoryTemplate({ dirName, entries, urlPath, showAll, escapeHtm
       align-items: center;
       gap: 1rem;
       padding: 1.5rem;
-      background: #f8f9fa;
+      background: var(--bg-tertiary);
       border-radius: 8px 8px 0 0;
-      border-bottom: 2px solid #e9ecef;
+      border-bottom: 2px solid var(--border-primary);
     }
 
     .directory-icon {
@@ -264,13 +332,13 @@ function createDirectoryTemplate({ dirName, entries, urlPath, showAll, escapeHtm
     .directory-name {
       font-size: 1.25rem;
       font-weight: 600;
-      color: #212529;
+      color: var(--text-primary);
       margin-bottom: 0.25rem;
     }
 
     .directory-meta {
       font-size: 0.875rem;
-      color: #6c757d;
+      color: var(--text-secondary);
       display: flex;
       align-items: center;
       gap: 0.5rem;
@@ -280,7 +348,35 @@ function createDirectoryTemplate({ dirName, entries, urlPath, showAll, escapeHtm
     .last-commit {
       font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', 'source-code-pro', monospace;
       font-size: 0.8125rem;
-      color: #495057;
+      color: var(--text-secondary);
+    }
+
+    .sort-controls {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      padding: var(--space-2) var(--space-6);
+      border-bottom: 1px solid var(--border-primary);
+      font-size: 0.8125rem;
+    }
+    .sort-label {
+      color: var(--text-secondary);
+      font-weight: 600;
+    }
+    .sort-btn {
+      padding: var(--space-1) var(--space-2);
+      border-radius: var(--radius-sm);
+      color: var(--text-secondary);
+      text-decoration: none;
+      transition: all 0.15s;
+    }
+    .sort-btn:hover {
+      background: var(--bg-hover);
+      color: var(--text-primary);
+    }
+    .sort-btn.active {
+      background: var(--accent-blue);
+      color: #fff;
     }
 
     .git-legend {
@@ -288,14 +384,14 @@ function createDirectoryTemplate({ dirName, entries, urlPath, showAll, escapeHtm
       align-items: center;
       gap: 1rem;
       padding: 0.75rem 1.5rem;
-      background: #fff9e6;
-      border-bottom: 1px solid #e9ecef;
+      background: var(--bg-tertiary);
+      border-bottom: 1px solid var(--border-primary);
       font-size: 0.8125rem;
     }
 
     .git-legend-title {
       font-weight: 600;
-      color: #495057;
+      color: var(--text-secondary);
     }
 
     .git-legend-items {
@@ -308,11 +404,11 @@ function createDirectoryTemplate({ dirName, entries, urlPath, showAll, escapeHtm
       display: inline-flex;
       align-items: center;
       gap: 0.25rem;
-      color: #6c757d;
+      color: var(--text-secondary);
     }
 
     .file-list {
-      background: white;
+      background: var(--bg-primary);
       border-radius: 0 0 8px 8px;
       overflow: hidden;
     }
@@ -324,7 +420,7 @@ function createDirectoryTemplate({ dirName, entries, urlPath, showAll, escapeHtm
       padding: 1rem 1.5rem;
       text-decoration: none;
       color: inherit;
-      border-bottom: 1px solid #e9ecef;
+      border-bottom: 1px solid var(--border-primary);
       transition: background-color 0.15s ease;
       position: relative;
     }
@@ -334,20 +430,37 @@ function createDirectoryTemplate({ dirName, entries, urlPath, showAll, escapeHtm
     }
 
     .file-entry:hover {
-      background-color: #f8f9fa;
+      background-color: var(--bg-hover);
     }
 
     .file-entry.parent-dir {
-      background-color: #f8f9fa;
+      background-color: var(--bg-tertiary);
       font-weight: 500;
     }
 
     .file-entry.parent-dir:hover {
-      background-color: #e9ecef;
+      background-color: var(--bg-hover);
     }
 
     .file-entry.ignored {
       opacity: 0.5;
+    }
+
+    .file-entry.focused {
+      background-color: var(--bg-hover);
+      outline: 2px solid var(--accent-blue);
+      outline-offset: -2px;
+    }
+
+    .file-entry:focus-visible {
+      outline: 2px solid var(--accent-blue);
+      outline-offset: -2px;
+    }
+
+    a:focus-visible {
+      outline: 2px solid var(--accent-blue);
+      outline-offset: 2px;
+      border-radius: var(--radius-sm);
     }
 
     .file-icon {
@@ -364,7 +477,7 @@ function createDirectoryTemplate({ dirName, entries, urlPath, showAll, escapeHtm
     .file-name {
       font-size: 1rem;
       font-weight: 500;
-      color: #212529;
+      color: var(--text-primary);
       margin-bottom: 0.25rem;
       word-wrap: break-word;
     }
@@ -374,7 +487,7 @@ function createDirectoryTemplate({ dirName, entries, urlPath, showAll, escapeHtm
       gap: 0.5rem;
       align-items: center;
       font-size: 0.875rem;
-      color: #6c757d;
+      color: var(--text-secondary);
     }
 
     .file-size {
@@ -383,17 +496,17 @@ function createDirectoryTemplate({ dirName, entries, urlPath, showAll, escapeHtm
     }
 
     .separator {
-      color: #dee2e6;
+      color: var(--border-secondary);
     }
 
     .file-date {
-      color: #6c757d;
+      color: var(--text-secondary);
     }
 
     .file-commit {
       font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', 'source-code-pro', monospace;
       font-size: 0.8125rem;
-      color: #6c757d;
+      color: var(--text-secondary);
       margin-top: 0.25rem;
     }
 

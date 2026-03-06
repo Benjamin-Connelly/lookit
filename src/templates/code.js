@@ -117,7 +117,7 @@ function getLanguageFromExtension(ext) {
  * @param {Function} options.escapeHtml - Function to escape HTML
  * @returns {string} Complete HTML document
  */
-function createCodeTemplate({ fileName, code, urlPath, language, escapeHtml }) {
+function createCodeTemplate({ fileName, code, urlPath, language, escapeHtml, blameData }) {
   const breadcrumb = generateBreadcrumb(urlPath, escapeHtml);
 
   // Get language display name (capitalize first letter)
@@ -170,19 +170,58 @@ function createCodeTemplate({ fileName, code, urlPath, language, escapeHtml }) {
 
   const languageColor = languageColors[language] || '#666666';
 
+  // Build code lines with line numbers and optional blame gutter
+  const codeLines = code.split('\n');
+  let numberedCode = '';
+
+  if (blameData && blameData.length > 0) {
+    let lastHash = '';
+    codeLines.forEach((line, i) => {
+      const blame = blameData[i];
+      const isNewGroup = blame && blame.hash !== lastHash;
+      lastHash = blame ? blame.hash : lastHash;
+
+      const blameInfo = blame && isNewGroup
+        ? `<span class="blame-info" title="${escapeHtml(blame.author)} on ${blame.date}">${escapeHtml(blame.author.substring(0, 15).padEnd(15))} ${blame.date}</span>`
+        : `<span class="blame-info"></span>`;
+
+      numberedCode += `<span class="line-row"><span class="blame-gutter">${blameInfo}</span><span class="line-num">${i + 1}</span><span class="line-content">${line}</span>\n</span>`;
+    });
+  } else {
+    codeLines.forEach((line, i) => {
+      numberedCode += `<span class="line-row"><span class="line-num">${i + 1}</span><span class="line-content">${line}</span>\n</span>`;
+    });
+  }
+
+  const blameScript = blameData ? `
+<script>
+function toggleBlame() {
+  const container = document.querySelector('.code-container');
+  const btn = document.querySelector('.blame-toggle');
+  container.classList.toggle('show-blame');
+  const isActive = btn.classList.toggle('active');
+  btn.setAttribute('aria-pressed', isActive);
+}
+</script>
+` : '';
+
   const content = `
-    <div class="file-header">
-      <div class="file-icon">💻</div>
-      <div class="file-info">
-        <div class="file-name">${escapeHtml(fileName)}</div>
-        <div class="file-meta">
-          <span class="language-badge" style="background-color: ${languageColor};">${escapeHtml(languageDisplay)}</span>
+    <article>
+      <div class="file-header">
+        <div class="file-icon">💻</div>
+        <div class="file-info">
+          <div class="file-name">${escapeHtml(fileName)}</div>
+          <div class="file-meta">
+            <span class="language-badge" style="background-color: ${languageColor};">${escapeHtml(languageDisplay)}</span>
+            ${blameData ? '<button class="blame-toggle btn" role="button" aria-pressed="false" onclick="toggleBlame()">Blame</button>' : ''}
+          </div>
         </div>
       </div>
-    </div>
-    <div class="code-container">
-      <pre><code class="hljs ${escapeHtml(language || '')}">${code}</code></pre>
-    </div>
+      <div class="code-container" aria-label="Source code">
+        <pre><code class="hljs ${escapeHtml(language || '')}">${numberedCode}</code></pre>
+      </div>
+    </article>
+    ${blameScript}
   `;
 
   const extraStyles = `
@@ -191,9 +230,9 @@ function createCodeTemplate({ fileName, code, urlPath, language, escapeHtml }) {
       align-items: center;
       gap: 1rem;
       padding: 1.5rem;
-      background: #f8f9fa;
+      background: var(--bg-tertiary);
       border-radius: 8px 8px 0 0;
-      border-bottom: 2px solid #e9ecef;
+      border-bottom: 2px solid var(--border-primary);
     }
 
     .file-icon {
@@ -208,7 +247,7 @@ function createCodeTemplate({ fileName, code, urlPath, language, escapeHtml }) {
     .file-name {
       font-size: 1.25rem;
       font-weight: 600;
-      color: #212529;
+      color: var(--text-primary);
       margin-bottom: 0.5rem;
     }
 
@@ -230,7 +269,7 @@ function createCodeTemplate({ fileName, code, urlPath, language, escapeHtml }) {
     }
 
     .code-container {
-      background: #0d1117;
+      background: var(--bg-primary);
       border-radius: 0 0 8px 8px;
       overflow: hidden;
     }
@@ -246,13 +285,70 @@ function createCodeTemplate({ fileName, code, urlPath, language, escapeHtml }) {
       font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', 'source-code-pro', monospace;
       font-size: 0.9rem;
       line-height: 1.6;
-      color: #c9d1d9;
+      color: var(--text-primary);
     }
 
     /* Override highlight.js styles for better visibility */
     .hljs {
       background: transparent !important;
       padding: 0 !important;
+    }
+
+    .line-row {
+      display: inline-flex;
+      width: 100%;
+    }
+
+    .line-num {
+      display: inline-block;
+      min-width: 3em;
+      padding-right: 1em;
+      text-align: right;
+      color: var(--text-tertiary);
+      user-select: none;
+      flex-shrink: 0;
+    }
+
+    .line-content {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .blame-gutter {
+      display: none;
+      min-width: 22em;
+      padding-right: 1em;
+      color: var(--text-tertiary);
+      font-size: 0.75rem;
+      user-select: none;
+      flex-shrink: 0;
+      border-right: 1px solid var(--border-primary);
+      margin-right: 0.5em;
+    }
+
+    .blame-gutter .blame-info {
+      white-space: pre;
+    }
+
+    .show-blame .blame-gutter {
+      display: inline-block;
+    }
+
+    .blame-toggle {
+      font-size: 0.75rem;
+      padding: 0.25rem 0.75rem;
+    }
+
+    .blame-toggle.active {
+      background: var(--accent-blue);
+      color: white;
+      border-color: var(--accent-blue);
+    }
+
+    .file-header a:focus-visible,
+    .blame-toggle:focus-visible {
+      outline: 2px solid var(--accent-blue);
+      outline-offset: 2px;
     }
   `;
 
