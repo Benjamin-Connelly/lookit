@@ -5,11 +5,16 @@ import (
 	"os"
 	"path/filepath"
 
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/spf13/cobra"
+
 	"github.com/Benjamin-Connelly/lookit/internal/config"
 	"github.com/Benjamin-Connelly/lookit/internal/doctor"
 	"github.com/Benjamin-Connelly/lookit/internal/export"
 	"github.com/Benjamin-Connelly/lookit/internal/index"
-	"github.com/spf13/cobra"
+	"github.com/Benjamin-Connelly/lookit/internal/render"
+	"github.com/Benjamin-Connelly/lookit/internal/tui"
+	"github.com/Benjamin-Connelly/lookit/internal/web"
 )
 
 const version = "v0.1.0"
@@ -29,8 +34,28 @@ link navigation with history, backlinks, and broken link detection.`,
 		if err != nil {
 			return err
 		}
-		fmt.Printf("launching TUI at %s\n", root)
-		return nil
+
+		idx := index.New(root)
+		if err := idx.Build(); err != nil {
+			return fmt.Errorf("building index: %w", err)
+		}
+
+		links := index.NewLinkGraph()
+		links.BuildFromIndex(idx)
+
+		watcher, err := index.NewWatcher(idx, links, nil)
+		if err != nil {
+			return fmt.Errorf("starting watcher: %w", err)
+		}
+		defer watcher.Close()
+		if err := watcher.Start(); err != nil {
+			return fmt.Errorf("watching files: %w", err)
+		}
+
+		model := tui.New(cfg, idx, links)
+		p := tea.NewProgram(model, tea.WithAltScreen())
+		_, err = p.Run()
+		return err
 	},
 }
 
@@ -44,11 +69,30 @@ var serveCmd = &cobra.Command{
 			return err
 		}
 		port, _ := cmd.Flags().GetInt("port")
-		if port == 0 {
-			port = cfg.Server.Port
+		if port != 0 {
+			cfg.Server.Port = port
 		}
-		fmt.Printf("starting web server on :%d serving %s\n", port, root)
-		return nil
+
+		idx := index.New(root)
+		if err := idx.Build(); err != nil {
+			return fmt.Errorf("building index: %w", err)
+		}
+
+		links := index.NewLinkGraph()
+		links.BuildFromIndex(idx)
+
+		srv := web.New(cfg, idx, links)
+
+		watcher, err := index.NewWatcher(idx, links, srv.OnFileChange)
+		if err != nil {
+			return fmt.Errorf("starting watcher: %w", err)
+		}
+		defer watcher.Close()
+		if err := watcher.Start(); err != nil {
+			return fmt.Errorf("watching files: %w", err)
+		}
+
+		return srv.Start()
 	},
 }
 
@@ -57,7 +101,22 @@ var catCmd = &cobra.Command{
 	Short: "Render markdown to terminal",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		fmt.Printf("rendering %s\n", args[0])
+		filePath := args[0]
+		if _, err := os.Stat(filePath); err != nil {
+			return fmt.Errorf("file not found: %s", filePath)
+		}
+
+		mdRenderer, err := render.NewMarkdownRenderer(cfg.Theme, 80)
+		if err != nil {
+			return fmt.Errorf("creating renderer: %w", err)
+		}
+
+		out, err := mdRenderer.RenderFile(filePath)
+		if err != nil {
+			return fmt.Errorf("rendering %s: %w", filePath, err)
+		}
+
+		fmt.Print(out)
 		return nil
 	},
 }
