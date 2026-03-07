@@ -8,8 +8,8 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/exec"
 	"os/signal"
-	"strings"
 	"syscall"
 	"time"
 
@@ -36,6 +36,7 @@ type SSEBroker struct {
 	register   chan chan string
 	unregister chan chan string
 	broadcast  chan string
+	done       chan struct{}
 }
 
 // NewSSEBroker creates a new SSE event broker.
@@ -45,6 +46,7 @@ func NewSSEBroker() *SSEBroker {
 		register:   make(chan chan string),
 		unregister: make(chan chan string),
 		broadcast:  make(chan string, 16),
+		done:       make(chan struct{}),
 	}
 	go b.run()
 	return b
@@ -53,6 +55,13 @@ func NewSSEBroker() *SSEBroker {
 func (b *SSEBroker) run() {
 	for {
 		select {
+		case <-b.done:
+			// Close all client channels so SSE handlers unblock
+			for client := range b.clients {
+				close(client)
+			}
+			b.clients = nil
+			return
 		case client := <-b.register:
 			b.clients[client] = true
 		case client := <-b.unregister:
@@ -71,9 +80,17 @@ func (b *SSEBroker) run() {
 	}
 }
 
+// Stop shuts down the broker and closes all client connections.
+func (b *SSEBroker) Stop() {
+	close(b.done)
+}
+
 // Notify sends a reload event to all connected clients.
 func (b *SSEBroker) Notify(path string) {
-	b.broadcast <- path
+	select {
+	case b.broadcast <- path:
+	case <-b.done:
+	}
 }
 
 // New creates a new web server.
@@ -114,21 +131,33 @@ func (s *Server) Start() error {
 
 	errCh := make(chan error, 1)
 	go func() {
-		log.Printf("lookit web server listening on http://%s", addr)
+		fmt.Printf("lookit serving http://%s\n", addr)
 		errCh <- s.server.ListenAndServe()
 	}()
+
+	// Open browser if requested
+	if s.cfg.Server.Open {
+		url := fmt.Sprintf("http://%s", addr)
+		go func() {
+			// Small delay to let the server start
+			time.Sleep(200 * time.Millisecond)
+			_ = exec.Command("xdg-open", url).Start()
+		}()
+	}
 
 	select {
 	case err := <-errCh:
 		return err
 	case sig := <-sigCh:
-		log.Printf("received %v, shutting down", sig)
+		fmt.Printf("\nreceived %v, shutting down\n", sig)
 		return s.Stop()
 	}
 }
 
 // Stop gracefully shuts down the server.
 func (s *Server) Stop() error {
+	// Close SSE broker first so SSE handler goroutines unblock
+	s.sse.Stop()
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	return s.server.Shutdown(ctx)
@@ -143,19 +172,13 @@ func (s *Server) middleware(next http.Handler) http.Handler {
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("X-Frame-Options", "DENY")
 		w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'")
-
-		// ETag support for non-SSE, non-API requests
-		if !strings.HasPrefix(r.URL.Path, "/__events") && !strings.HasPrefix(r.URL.Path, "/__api/") {
-			rec := &responseRecorder{ResponseWriter: w, statusCode: 200}
-			next.ServeHTTP(rec, r)
-
-			// Log request
-			log.Printf("%s %s %d %s", r.Method, r.URL.Path, rec.statusCode, time.Since(start).Round(time.Millisecond))
-			return
-		}
+		w.Header().Set("Referrer-Policy", "no-referrer")
+		w.Header().Set("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
 
 		next.ServeHTTP(w, r)
-		log.Printf("%s %s %s", r.Method, r.URL.Path, time.Since(start).Round(time.Millisecond))
+		if s.cfg.Debug {
+			log.Printf("%s %s %s", r.Method, r.URL.Path, time.Since(start).Round(time.Millisecond))
+		}
 	})
 }
 

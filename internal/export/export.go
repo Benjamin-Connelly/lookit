@@ -15,7 +15,6 @@ import (
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/extension"
 	"github.com/yuin/goldmark/parser"
-	goldhtml "github.com/yuin/goldmark/renderer/html"
 
 	"github.com/Benjamin-Connelly/lookit/internal/index"
 )
@@ -99,7 +98,6 @@ func exportHTML(source []byte, relPath, absPath, outputDir string) error {
 	md := goldmark.New(
 		goldmark.WithExtensions(extension.GFM),
 		goldmark.WithParserOptions(parser.WithAutoHeadingID()),
-		goldmark.WithRendererOptions(goldhtml.WithUnsafe()),
 	)
 
 	var body bytes.Buffer
@@ -231,8 +229,16 @@ func copyReferencedImages(source []byte, srcDir, outDir string) {
 		if strings.HasPrefix(imgPath, "http://") || strings.HasPrefix(imgPath, "https://") {
 			continue
 		}
-		srcPath := filepath.Join(srcDir, imgPath)
-		dstPath := filepath.Join(outDir, imgPath)
+		srcPath := filepath.Clean(filepath.Join(srcDir, imgPath))
+		dstPath := filepath.Clean(filepath.Join(outDir, imgPath))
+
+		// Prevent path traversal: both paths must stay under their roots
+		if !strings.HasPrefix(srcPath, srcDir+string(os.PathSeparator)) {
+			continue
+		}
+		if !strings.HasPrefix(dstPath, outDir+string(os.PathSeparator)) {
+			continue
+		}
 
 		// Ensure destination directory exists
 		if err := os.MkdirAll(filepath.Dir(dstPath), 0o755); err != nil {

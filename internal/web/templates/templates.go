@@ -9,7 +9,10 @@ import (
 //go:embed *.html
 var templateFS embed.FS
 
-var Templates *template.Template
+// PageTemplates holds separately-parsed templates for each page type.
+// Each page template is cloned from the base so that {{define "content"}}
+// blocks don't overwrite each other.
+var PageTemplates map[string]*template.Template
 
 func init() {
 	funcMap := template.FuncMap{
@@ -17,5 +20,19 @@ func init() {
 		"repeat":     strings.Repeat,
 		"trimPrefix": strings.TrimPrefix,
 	}
-	Templates = template.Must(template.New("").Funcs(funcMap).ParseFS(templateFS, "*.html"))
+
+	// Parse the base template first
+	baseContent, _ := templateFS.ReadFile("base.html")
+	base := template.Must(template.New("base.html").Funcs(funcMap).Parse(string(baseContent)))
+
+	// Each page template gets its own clone of the base
+	pages := []string{"directory.html", "markdown.html", "code.html"}
+	PageTemplates = make(map[string]*template.Template, len(pages))
+
+	for _, page := range pages {
+		t := template.Must(base.Clone())
+		pageContent, _ := templateFS.ReadFile(page)
+		template.Must(t.Parse(string(pageContent)))
+		PageTemplates[page] = t
+	}
 }

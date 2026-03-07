@@ -74,7 +74,7 @@ func (idx *Index) Build() error {
 
 	gitignore := loadGitignore(idx.root)
 
-	return filepath.WalkDir(idx.root, func(path string, d os.DirEntry, err error) error {
+	err := filepath.WalkDir(idx.root, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			return nil
 		}
@@ -129,7 +129,6 @@ func (idx *Index) Build() error {
 		}
 
 		idx.entries = append(idx.entries, entry)
-		idx.byPath[rel] = &idx.entries[len(idx.entries)-1]
 
 		if d.IsDir() {
 			idx.stats.DirCount++
@@ -140,6 +139,18 @@ func (idx *Index) Build() error {
 
 		return nil
 	})
+	if err != nil {
+		return err
+	}
+
+	// Build byPath map after walk completes so pointers into the
+	// finalized entries slice are stable (append during walk can
+	// reallocate the backing array, invalidating earlier pointers).
+	for i := range idx.entries {
+		idx.byPath[idx.entries[i].RelPath] = &idx.entries[i]
+	}
+
+	return nil
 }
 
 // Rebuild performs an incremental update by re-walking the tree.

@@ -29,6 +29,9 @@ type Config struct {
 
 	// File patterns to ignore (in addition to .gitignore)
 	Ignore []string `mapstructure:"ignore"`
+
+	// Debug enables verbose logging
+	Debug bool `mapstructure:"debug"`
 }
 
 // ServerConfig holds web server settings.

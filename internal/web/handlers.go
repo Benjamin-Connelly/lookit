@@ -2,6 +2,7 @@ package web
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"html/template"
@@ -11,6 +12,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 	"unicode"
 
 	gitpkg "github.com/Benjamin-Connelly/lookit/internal/git"
@@ -21,7 +23,6 @@ import (
 	highlighting "github.com/yuin/goldmark-emoji"
 	"github.com/yuin/goldmark/extension"
 	"github.com/yuin/goldmark/parser"
-	goldhtml "github.com/yuin/goldmark/renderer/html"
 )
 
 // Common template data shared by all pages.
@@ -85,6 +86,19 @@ func (s *Server) handleRoot(w http.ResponseWriter, r *http.Request) {
 	relPath := strings.TrimPrefix(cleanPath, "/")
 	if relPath == "" {
 		relPath = "."
+	}
+
+	// Verify resolved path stays within the served root
+	if relPath != "." {
+		absPath := filepath.Join(s.idx.Root(), relPath)
+		resolved, err := filepath.EvalSymlinks(absPath)
+		if err == nil {
+			rootPrefix := s.idx.Root() + string(os.PathSeparator)
+			if !strings.HasPrefix(resolved, rootPrefix) && resolved != s.idx.Root() {
+				http.Error(w, "Forbidden", http.StatusForbidden)
+				return
+			}
+		}
 	}
 
 	entry := s.idx.Lookup(relPath)
@@ -203,7 +217,7 @@ func (s *Server) handleDirectory(w http.ResponseWriter, r *http.Request, relPath
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	var buf bytes.Buffer
-	if err := templates.Templates.ExecuteTemplate(&buf, "directory.html", data); err != nil {
+	if err := templates.PageTemplates["directory.html"].ExecuteTemplate(&buf, "base", data); err != nil {
 		http.Error(w, "Template error: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -256,9 +270,6 @@ func (s *Server) handleMarkdown(w http.ResponseWriter, r *http.Request, relPath 
 		goldmark.WithParserOptions(
 			parser.WithAutoHeadingID(),
 		),
-		goldmark.WithRendererOptions(
-			goldhtml.WithUnsafe(),
-		),
 	)
 	var buf bytes.Buffer
 	if err := md.Convert(source, &buf); err != nil {
@@ -296,7 +307,7 @@ func (s *Server) handleMarkdown(w http.ResponseWriter, r *http.Request, relPath 
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	var out bytes.Buffer
-	if err := templates.Templates.ExecuteTemplate(&out, "markdown.html", data); err != nil {
+	if err := templates.PageTemplates["markdown.html"].ExecuteTemplate(&out, "base", data); err != nil {
 		http.Error(w, "Template error: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -340,7 +351,7 @@ func (s *Server) handleFile(w http.ResponseWriter, r *http.Request, relPath stri
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	var buf bytes.Buffer
-	if err := templates.Templates.ExecuteTemplate(&buf, "code.html", data); err != nil {
+	if err := templates.PageTemplates["code.html"].ExecuteTemplate(&buf, "base", data); err != nil {
 		http.Error(w, "Template error: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -372,18 +383,23 @@ var grepLineRe = regexp.MustCompile(`^([^:]+):(\d+):(.*)$`)
 
 func (s *Server) handleAPISearch(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query().Get("q")
-	if query == "" {
+	if query == "" || len(query) > 200 {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode([]searchResult{})
 		return
 	}
 
-	// Use git grep if in a git repo, otherwise fall back to grep
+	// Use git grep if in a git repo, otherwise fall back to grep.
+	// Use "--" to separate flags from the pattern to prevent flag injection.
+	// Use a 5-second timeout to prevent ReDoS from pathological patterns.
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+
 	var cmd *exec.Cmd
 	if gitpkg.IsRepo(s.idx.Root()) {
-		cmd = exec.Command("git", "grep", "-n", "--no-color", "-I", query)
+		cmd = exec.CommandContext(ctx, "git", "grep", "-n", "--no-color", "-I", "-F", "--", query)
 	} else {
-		cmd = exec.Command("grep", "-rn", "--no-color", "-I", query, ".")
+		cmd = exec.CommandContext(ctx, "grep", "-rn", "--no-color", "-I", "-F", "--", query, ".")
 	}
 	cmd.Dir = s.idx.Root()
 

@@ -3,6 +3,7 @@ package tui
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -198,7 +199,16 @@ func (m *Model) handleNormalKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.status.SetMode(m.modeString())
 		return m, nil
 
+	case "esc":
+		// Clear frozen filter if active
+		if m.fileList.filter != "" {
+			m.fileList.ClearFilter()
+			return m, nil
+		}
+		return m, nil
+
 	case "/", "ctrl+k":
+		m.focus = PanelFileList
 		m.fileList.StartFilter()
 		m.status.SetMode("FILTER")
 		return m, nil
@@ -288,20 +298,49 @@ func (m *Model) handleFileListKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.fileList.MoveDown()
 		return m, nil
 	case "enter", "l":
-		sel := m.fileList.Selected()
+		// If filter is active (frozen results), select from filtered list
+		if m.fileList.filter != "" {
+			sel := m.fileList.Selected()
+			if sel == nil {
+				return m, nil
+			}
+			// Clear filter and open the file
+			m.fileList.ClearFilter()
+			if sel.IsDir {
+				return m, nil
+			}
+			return m, func() tea.Msg {
+				return FileSelectedMsg{Entry: *sel}
+			}
+		}
+		sel := m.fileList.SelectedVisible()
 		if sel == nil {
+			return m, nil
+		}
+		if sel.IsDir {
+			m.fileList.ToggleDir()
 			return m, nil
 		}
 		return m, func() tea.Msg {
 			return FileSelectedMsg{Entry: *sel}
 		}
+	case "h":
+		// Collapse current directory or go to parent
+		sel := m.fileList.SelectedVisible()
+		if sel != nil && sel.IsDir && !m.fileList.collapsed[sel.RelPath] {
+			m.fileList.ToggleDir()
+		}
+		return m, nil
+	case "e":
+		return m.openInEditor()
 	case "g":
 		m.fileList.cursor = 0
 		m.fileList.offset = 0
 		return m, nil
 	case "G":
-		if len(m.fileList.filtered) > 0 {
-			m.fileList.cursor = len(m.fileList.filtered) - 1
+		max := m.fileList.listLen() - 1
+		if max >= 0 {
+			m.fileList.cursor = max
 		}
 		return m, nil
 	}
@@ -328,6 +367,8 @@ func (m *Model) handlePreviewKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "end", "G":
 		m.preview.ScrollToBottom()
 		return m, nil
+	case "e":
+		return m.openInEditor()
 	}
 	return m, nil
 }
@@ -376,15 +417,11 @@ func (m *Model) handleFilterKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.status.SetMode("NORMAL")
 		return m, nil
 	case "enter":
+		// Freeze results — stop filtering but keep the filtered list
 		m.fileList.filtering = false
-		m.status.SetMode("NORMAL")
-		sel := m.fileList.Selected()
-		if sel == nil {
-			return m, nil
-		}
-		return m, func() tea.Msg {
-			return FileSelectedMsg{Entry: *sel}
-		}
+		m.focus = PanelFileList
+		m.status.SetMode("FILES")
+		return m, nil
 	case "backspace":
 		if len(m.fileList.filter) > 0 {
 			m.fileList.SetFilter(m.fileList.filter[:len(m.fileList.filter)-1])
@@ -397,8 +434,10 @@ func (m *Model) handleFilterKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.fileList.MoveDown()
 		return m, nil
 	default:
-		if len(msg.String()) == 1 {
-			m.fileList.SetFilter(m.fileList.filter + msg.String())
+		ch := msg.String()
+		// Ignore the `/` that triggered filter mode
+		if len(ch) == 1 && ch != "/" {
+			m.fileList.SetFilter(m.fileList.filter + ch)
 		}
 		return m, nil
 	}
@@ -489,10 +528,12 @@ func (m *Model) handleFollowLink() (tea.Model, tea.Cmd) {
 }
 
 func (m *Model) handleLinkFollow(target string) (tea.Model, tea.Cmd) {
-	// Save current position in history
+	// Save current position in history, then push the target so that
+	// Back returns the source and Forward from the source reaches the target.
 	if m.preview.filePath != "" {
 		m.navigator.Navigate(m.preview.filePath, m.preview.scroll)
 	}
+	m.navigator.Navigate(target, 0)
 	return m.navigateToPath(target, 0)
 }
 
@@ -505,8 +546,8 @@ func (m *Model) navigateToPath(path string, scroll int) (tea.Model, tea.Cmd) {
 	}
 
 	// Update file list cursor to match
-	for i, e := range m.fileList.filtered {
-		if e.RelPath == path {
+	for i, node := range m.fileList.visible {
+		if node.entry.RelPath == path {
 			m.fileList.cursor = i
 			break
 		}
@@ -544,6 +585,48 @@ func (m *Model) handleCommandLinks() (tea.Model, tea.Cmd) {
 	return m, func() tea.Msg {
 		return PreviewLoadedMsg{Path: "Links: " + m.preview.filePath, Content: content}
 	}
+}
+
+func (m *Model) openInEditor() (tea.Model, tea.Cmd) {
+	// Determine which file to edit
+	var filePath string
+	if m.focus == PanelFileList {
+		sel := m.fileList.SelectedVisible()
+		if sel != nil && !sel.IsDir {
+			filePath = sel.Path
+		}
+	} else if m.preview.filePath != "" {
+		entry := m.idx.Lookup(m.preview.filePath)
+		if entry != nil {
+			filePath = entry.Path
+		}
+	}
+	if filePath == "" {
+		return m, func() tea.Msg {
+			return StatusMsg{Text: "No file selected"}
+		}
+	}
+
+	editor := os.Getenv("EDITOR")
+	if editor == "" {
+		editor = "vi"
+	}
+
+	c := exec.Command(editor, filePath)
+	c.Stdin = os.Stdin
+	c.Stdout = os.Stdout
+	c.Stderr = os.Stderr
+	return m, tea.ExecProcess(c, func(err error) tea.Msg {
+		if err != nil {
+			return StatusMsg{Text: "Editor error: " + err.Error()}
+		}
+		// Reload the file after editing
+		entry := m.idx.Lookup(m.preview.filePath)
+		if entry != nil {
+			return FileSelectedMsg{Entry: *entry}
+		}
+		return StatusMsg{Text: "File edited"}
+	})
 }
 
 func (m *Model) loadPreview(entry index.FileEntry) (tea.Model, tea.Cmd) {
@@ -606,16 +689,27 @@ type previewWithSourceMsg struct {
 }
 
 func (m *Model) recalcLayout() {
-	listWidth := m.width / 3
-	previewWidth := m.width - listWidth - 1
+	borders := 1
 	if m.sidePanel.Visible() {
-		// Split preview area: 2/3 preview, 1/3 side panel
-		panelWidth := previewWidth / 3
-		previewWidth = previewWidth - panelWidth - 1
+		borders = 2
 	}
+	available := m.width - borders
+	listWidth := available / 5
+	if listWidth < 20 {
+		listWidth = 20
+	}
+	panelWidth := 0
+	if m.sidePanel.Visible() {
+		panelWidth = (available - listWidth) / 4
+		if panelWidth < 25 {
+			panelWidth = 25
+		}
+	}
+	previewWidth := available - listWidth - panelWidth
+
 	m.preview.width = previewWidth
-	m.preview.height = m.height - 1
-	m.fileList.height = m.height - 1
+	m.preview.height = m.height - 2 // label row + status bar
+	m.fileList.height = m.height - 2
 	if m.mdRenderer != nil {
 		_ = m.mdRenderer.SetWidth(previewWidth - 2)
 	}
@@ -642,41 +736,85 @@ func (m *Model) View() string {
 		return "Loading..."
 	}
 
-	listWidth := m.width / 3
-	previewWidth := m.width - listWidth - 1
+	// Width budget: total must equal m.width exactly.
+	// Each BorderRight border costs 1 column.
+	// Layout: [listWidth]|[previewWidth]  or  [listWidth]|[previewWidth]|[panelWidth]
+	//         border=1                        borders=2
+	borders := 1
 	panelWidth := 0
 	contentHeight := m.height - 1
 
 	if m.sidePanel.Visible() {
-		panelWidth = previewWidth / 3
-		previewWidth = previewWidth - panelWidth - 1
+		borders = 2
 	}
 
-	listStyle := lipgloss.NewStyle().
-		Width(listWidth).
-		Height(contentHeight)
-
-	previewStyle := lipgloss.NewStyle().
-		Width(previewWidth).
-		Height(contentHeight)
-
-	// Focus indicator via border color
-	focusColor := lipgloss.Color("63")
-	dimColor := lipgloss.Color("240")
-
-	listBorderColor := dimColor
-	if m.focus == PanelFileList {
-		listBorderColor = focusColor
+	available := m.width - borders
+	listWidth := available / 5
+	if listWidth < 20 {
+		listWidth = 20
 	}
-	listBorder := listStyle.BorderRight(true).
-		BorderStyle(lipgloss.NormalBorder()).
-		BorderForeground(listBorderColor)
 
-	left := listBorder.Render(m.fileList.View())
+	if m.sidePanel.Visible() {
+		panelWidth = (available - listWidth) / 4
+		if panelWidth < 25 {
+			panelWidth = 25
+		}
+	}
 
+	previewWidth := available - listWidth - panelWidth
+
+	accentColor := lipgloss.Color("62")  // bright blue-purple for focused
+	dimColor := lipgloss.Color("240")    // gray for unfocused
+	borderColor := lipgloss.Color("237") // subtle separator
+
+	// Pane label helper
+	paneLabel := func(name string, focused bool, width int) string {
+		if focused {
+			style := lipgloss.NewStyle().
+				Foreground(lipgloss.Color("15")).
+				Background(accentColor).
+				Bold(true).
+				Width(width)
+			return style.Render(" " + name)
+		}
+		style := lipgloss.NewStyle().
+			Foreground(dimColor).
+			Width(width)
+		return style.Render(" " + name)
+	}
+
+	bodyHeight := contentHeight - 1 // 1 row for label
+
+	// Vertical separator: one column of │ characters for the full height
+	sepStyle := lipgloss.NewStyle().Foreground(borderColor)
+	sep := sepStyle.Render(strings.Repeat("│\n", contentHeight-1) + "│")
+
+	// Build each pane as label + body, hard-clipped to exact dimensions.
+	// MaxWidth+MaxHeight ensure content never overflows the budget.
+	buildPane := func(label, content string, width, height int) string {
+		body := lipgloss.NewStyle().
+			Width(width).
+			MaxWidth(width).
+			Height(height).
+			MaxHeight(height).
+			Render(content)
+		return lipgloss.JoinVertical(lipgloss.Left, label, body)
+	}
+
+	// File list pane
+	listFocused := m.focus == PanelFileList || m.fileList.filtering
+	listLabel := paneLabel("FILES", listFocused, listWidth)
+	listContent := m.fileList.View()
+	left := buildPane(listLabel, listContent, listWidth, bodyHeight)
+
+	// Preview pane
+	previewFocused := m.focus == PanelPreview
+	previewTitle := m.preview.filePath
+	if previewTitle == "" {
+		previewTitle = "PREVIEW"
+	}
+	previewLabel := paneLabel(previewTitle, previewFocused, previewWidth)
 	previewContent := m.preview.View()
-
-	// Overlay link selection on preview if active
 	if m.navigator.IsShowingLinks() {
 		overlay := m.navigator.LinkOverlayView()
 		previewContent = overlay + "\n" + strings.Repeat("─", 20) + "\n" + previewContent
@@ -684,33 +822,24 @@ func (m *Model) View() string {
 
 	var main string
 	if m.sidePanel.Visible() {
-		panelStyle := lipgloss.NewStyle().
-			Width(panelWidth).
-			Height(contentHeight)
+		right := buildPane(previewLabel, previewContent, previewWidth, bodyHeight)
 
-		previewBorderColor := dimColor
-		if m.focus == PanelPreview {
-			previewBorderColor = focusColor
-		}
-		rightWithBorder := lipgloss.NewStyle().
-			Width(previewWidth).
-			Height(contentHeight).
-			BorderRight(true).
-			BorderStyle(lipgloss.NormalBorder()).
-			BorderForeground(previewBorderColor).
-			Render(previewContent)
+		// Side panel
+		sideFocused := m.focus == PanelSide
+		sideName := m.sidePanel.TypeName()
+		sideLabel := paneLabel(sideName, sideFocused, panelWidth)
+		sideContent := m.sidePanel.View()
+		side := buildPane(sideLabel, sideContent, panelWidth, bodyHeight)
 
-		sideContent := panelStyle.Render(m.sidePanel.View())
-
-		main = lipgloss.JoinHorizontal(lipgloss.Top, left, rightWithBorder, sideContent)
+		main = lipgloss.JoinHorizontal(lipgloss.Top, left, sep, right, sep, side)
 	} else {
-		main = lipgloss.JoinHorizontal(lipgloss.Top, left, previewStyle.Render(previewContent))
+		right := buildPane(previewLabel, previewContent, previewWidth, bodyHeight)
+
+		main = lipgloss.JoinHorizontal(lipgloss.Top, left, sep, right)
 	}
 
-	// Command palette overlay at bottom
 	cmdView := m.cmdPalette.View()
 	if cmdView != "" {
-		// Replace status bar with command palette
 		return lipgloss.JoinVertical(lipgloss.Left, main, cmdView)
 	}
 

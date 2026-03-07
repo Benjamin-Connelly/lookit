@@ -17,7 +17,7 @@ import (
 	"github.com/Benjamin-Connelly/lookit/internal/web"
 )
 
-const version = "v0.1.0"
+const version = "v0.0.1-alpha"
 
 var cfg *config.Config
 
@@ -92,7 +92,12 @@ var serveCmd = &cobra.Command{
 			return fmt.Errorf("watching files: %w", err)
 		}
 
-		return srv.Start()
+		err = srv.Start()
+		// Suppress context deadline error on clean shutdown
+		if err != nil && err.Error() == "context deadline exceeded" {
+			return nil
+		}
+		return err
 	},
 }
 
@@ -219,6 +224,7 @@ Fish:
 func init() {
 	rootCmd.PersistentFlags().StringP("config", "c", "", "config file path")
 	rootCmd.PersistentFlags().String("theme", "", "color theme (light|dark|auto)")
+	rootCmd.PersistentFlags().Bool("debug", false, "enable verbose logging")
 
 	rootCmd.Flags().String("keymap", "", "keybinding preset (default|vim|emacs)")
 
@@ -254,6 +260,10 @@ func loadConfig(cmd *cobra.Command, args []string) error {
 		if keymap, _ := cmd.Flags().GetString("keymap"); keymap != "" {
 			cfg.Keymap = keymap
 		}
+	}
+
+	if debug, _ := cmd.Flags().GetBool("debug"); debug {
+		cfg.Debug = true
 	}
 
 	// Merge serve-specific flags

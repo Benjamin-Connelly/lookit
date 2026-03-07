@@ -171,6 +171,20 @@ func (m *SidePanelModel) Type() PanelType {
 	return m.panelType
 }
 
+// TypeName returns a display name for the current panel type.
+func (m *SidePanelModel) TypeName() string {
+	switch m.panelType {
+	case PanelTOC:
+		return "TOC"
+	case PanelBacklinks:
+		return "BACKLINKS"
+	case PanelBookmarks:
+		return "BOOKMARKS"
+	default:
+		return "PANEL"
+	}
+}
+
 // MoveUp moves the panel cursor up.
 func (m *SidePanelModel) MoveUp() {
 	if m.cursor > 0 {
