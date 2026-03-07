@@ -146,6 +146,9 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.navigator.IsShowingLinks() {
 			return m.handleLinkSelectKey(msg)
 		}
+		if m.preview.visualMode {
+			return m.handleVisualKey(msg)
+		}
 		if m.fileList.filtering {
 			return m.handleFilterKey(msg)
 		}
@@ -437,16 +440,18 @@ func (m *Model) handleNormalKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if m.preview.filePath == "" {
 			return m, nil
 		}
+		// Use current scroll position as line reference
+		line := m.preview.scroll + 1
 		return m, func() tea.Msg {
 			repo, err := gitpkg.Open(m.cfg.Root)
 			if err != nil {
 				return StatusMsg{Text: "Not a git repository"}
 			}
-			link, err := repo.CopyPermalink(m.preview.filePath, 0)
+			link, err := repo.CopyPermalink(m.preview.filePath, line)
 			if err != nil {
 				return StatusMsg{Text: "Permalink error: " + err.Error()}
 			}
-			return StatusMsg{Text: "Copied: " + link}
+			return StatusMsg{Text: fmt.Sprintf("Copied L%d: %s", line, link)}
 		}
 
 	case "backspace":
@@ -586,8 +591,65 @@ func (m *Model) handlePreviewKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			}
 		}
 		return m, nil
+	case "V":
+		m.preview.EnterVisualMode()
+		m.status.SetMode("VISUAL")
+		return m, nil
 	case "e":
 		return m.openInEditor()
+	}
+	return m, nil
+}
+
+// handleVisualKey handles keys during visual line selection mode.
+func (m *Model) handleVisualKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "j", "down":
+		m.preview.VisualCursorDown()
+		return m, nil
+	case "k", "up":
+		m.preview.VisualCursorUp()
+		return m, nil
+	case "y":
+		// Copy permalink with selected line range
+		startLine, endLine := m.preview.SelectedSourceLines()
+		m.preview.ExitVisualMode()
+		m.status.SetMode(m.modeString())
+		return m, func() tea.Msg {
+			repo, err := gitpkg.Open(m.cfg.Root)
+			if err != nil {
+				return StatusMsg{Text: "Not a git repository"}
+			}
+			var link string
+			if startLine == endLine {
+				link, err = repo.CopyPermalink(m.preview.filePath, startLine)
+			} else {
+				link, err = repo.PermalinkForRange(m.preview.filePath, startLine, endLine)
+				if err == nil {
+					_ = clipboard.WriteAll(link)
+				}
+			}
+			if err != nil {
+				return StatusMsg{Text: "Permalink error: " + err.Error()}
+			}
+			return StatusMsg{Text: fmt.Sprintf("Copied L%d-%d: %s", startLine, endLine, link)}
+		}
+	case "esc", "V":
+		m.preview.ExitVisualMode()
+		m.status.SetMode(m.modeString())
+		return m, nil
+	case "G":
+		// Select to bottom
+		m.preview.cursorLine = len(m.preview.lines) - 1
+		m.preview.updateVisualRange()
+		m.preview.ScrollToBottom()
+		return m, nil
+	case "g":
+		// Select to top
+		m.preview.cursorLine = 0
+		m.preview.updateVisualRange()
+		m.preview.scroll = 0
+		return m, nil
 	}
 	return m, nil
 }
@@ -1134,6 +1196,13 @@ func (m *Model) View() string {
 	m.status.width = m.width
 	m.status.focus = m.focus
 	m.status.showingHelp = m.showingHelp
+	m.status.visualMode = m.preview.visualMode
+	if m.preview.visualMode {
+		s, e := m.preview.SelectedSourceLines()
+		m.status.visualRange = fmt.Sprintf("L%d-L%d", s, e)
+	} else {
+		m.status.visualRange = ""
+	}
 	m.status.linkActive = m.previewLinkIdx >= 0 && m.previewLinkIdx < len(m.previewLinks)
 	if m.status.linkActive {
 		m.status.linkText = m.previewLinks[m.previewLinkIdx].text

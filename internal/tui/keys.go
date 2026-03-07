@@ -103,6 +103,14 @@ func Help(km KeyMap) string {
 	b.WriteString("  enter        follow highlighted link\n")
 	b.WriteString("  esc          clear link highlight\n")
 
+	b.WriteString("\nVisual Mode (Preview)\n")
+	b.WriteString(strings.Repeat("-", 40) + "\n")
+	b.WriteString("  V            enter visual line select\n")
+	b.WriteString("  j/k          extend selection up/down\n")
+	b.WriteString("  y            copy permalink for selection\n")
+	b.WriteString("  g/G          select to top/bottom\n")
+	b.WriteString("  esc          cancel selection\n")
+
 	b.WriteString("\nGeneral\n")
 	b.WriteString(strings.Repeat("-", 40) + "\n")
 	b.WriteString("  esc          close help / back to file list\n")

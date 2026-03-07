@@ -16,6 +16,17 @@ type PreviewModel struct {
 	width         int
 	height        int
 	highlightLine int // -1 = no highlight
+
+	// Source line tracking (for permalink generation)
+	sourceLineCount int  // total lines in source file
+	isCodeFile      bool // true = rendered lines map 1:1 to source
+
+	// Visual line selection
+	visualMode   bool
+	visualAnchor int // where selection started (fixed)
+	visualStart  int // min(anchor, cursor)
+	visualEnd    int // max(anchor, cursor)
+	cursorLine   int // current cursor position in visual mode
 }
 
 // NewPreviewModel creates a preview pane.
@@ -30,6 +41,73 @@ func (m *PreviewModel) SetContent(path, content string) {
 	m.lines = strings.Split(content, "\n")
 	m.scroll = 0
 	m.highlightLine = -1
+	m.visualMode = false
+	m.cursorLine = 0
+}
+
+// SetSourceInfo stores metadata about the source file for line mapping.
+func (m *PreviewModel) SetSourceInfo(lineCount int, isCode bool) {
+	m.sourceLineCount = lineCount
+	m.isCodeFile = isCode
+}
+
+// EnterVisualMode starts line selection at the current scroll position.
+func (m *PreviewModel) EnterVisualMode() {
+	m.visualMode = true
+	m.cursorLine = m.scroll
+	m.visualAnchor = m.cursorLine
+	m.visualStart = m.cursorLine
+	m.visualEnd = m.cursorLine
+}
+
+// ExitVisualMode clears selection.
+func (m *PreviewModel) ExitVisualMode() {
+	m.visualMode = false
+}
+
+// VisualCursorDown moves the visual cursor down.
+func (m *PreviewModel) VisualCursorDown() {
+	if m.cursorLine < len(m.lines)-1 {
+		m.cursorLine++
+	}
+	m.updateVisualRange()
+	// Auto-scroll if cursor moves below viewport
+	if m.cursorLine >= m.scroll+m.height {
+		m.scroll = m.cursorLine - m.height + 1
+	}
+}
+
+// VisualCursorUp moves the visual cursor up.
+func (m *PreviewModel) VisualCursorUp() {
+	if m.cursorLine > 0 {
+		m.cursorLine--
+	}
+	m.updateVisualRange()
+	// Auto-scroll if cursor moves above viewport
+	if m.cursorLine < m.scroll {
+		m.scroll = m.cursorLine
+	}
+}
+
+func (m *PreviewModel) updateVisualRange() {
+	if m.cursorLine < m.visualAnchor {
+		m.visualStart = m.cursorLine
+		m.visualEnd = m.visualAnchor
+	} else {
+		m.visualStart = m.visualAnchor
+		m.visualEnd = m.cursorLine
+	}
+}
+
+// SelectedSourceLines returns the 1-based source line range for the visual selection.
+// For code files (1:1 mapping), this is exact. For markdown, it's approximate.
+func (m *PreviewModel) SelectedSourceLines() (startLine, endLine int) {
+	if !m.visualMode {
+		// Single line at cursor/scroll position
+		line := m.scroll + 1
+		return line, line
+	}
+	return m.visualStart + 1, m.visualEnd + 1
 }
 
 // ScrollUp scrolls the preview up.
@@ -89,6 +167,19 @@ func (m PreviewModel) View() string {
 
 	visible := make([]string, end-start)
 	copy(visible, m.lines[start:end])
+
+	// Highlight visual selection range
+	if m.visualMode {
+		selStyle := lipgloss.NewStyle().
+			Background(lipgloss.Color("24")).
+			Foreground(lipgloss.Color("255"))
+		for i := range visible {
+			lineIdx := start + i
+			if lineIdx >= m.visualStart && lineIdx <= m.visualEnd {
+				visible[i] = selStyle.Render(visible[i])
+			}
+		}
+	}
 
 	// Highlight the line with the active link cursor
 	if m.highlightLine >= start && m.highlightLine < end {

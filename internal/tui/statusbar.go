@@ -16,6 +16,8 @@ type StatusBarModel struct {
 	showingHelp bool
 	linkActive  bool
 	linkText    string
+	visualMode  bool
+	visualRange string
 	width       int
 }
 
@@ -43,6 +45,13 @@ func (m *StatusBarModel) SetMode(mode string) {
 
 // contextHints returns panel-specific keybinding hints.
 func (m StatusBarModel) contextHints() string {
+	if m.visualMode {
+		hint := "j/k:select lines  y:copy permalink  g/G:top/bottom  esc:cancel"
+		if m.visualRange != "" {
+			hint = m.visualRange + "  " + hint
+		}
+		return hint
+	}
 	if m.showingHelp {
 		return "esc:close help  ?:close help  q:quit"
 	}
