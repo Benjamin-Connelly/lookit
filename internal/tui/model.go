@@ -384,6 +384,24 @@ func (m *Model) handleNormalKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.recalcLayout()
 		return m, nil
 
+	case "i":
+		// If already focused on git info, close and return to preview
+		if m.sidePanel.Type() == PanelGitInfo && m.focus == PanelSide {
+			m.sidePanel.Toggle(PanelGitInfo)
+			m.focus = PanelPreview
+			m.status.SetMode(m.modeString())
+			m.recalcLayout()
+			return m, nil
+		}
+		if m.sidePanel.Type() != PanelGitInfo {
+			m.sidePanel.Toggle(PanelGitInfo)
+		}
+		m.sidePanel.SetGitInfo(m.cfg.Root, m.preview.filePath)
+		m.focus = PanelSide
+		m.status.SetMode(m.modeString())
+		m.recalcLayout()
+		return m, nil
+
 	case "c":
 		if m.preview.filePath == "" {
 			return m, nil

@@ -47,7 +47,7 @@ func DefaultKeyMap() KeyMap {
 		Bookmark:  key.NewBinding(key.WithKeys("m"), key.WithHelp("m", "bookmark")),
 		Command:   key.NewBinding(key.WithKeys(":"), key.WithHelp(":", "command")),
 		CopyLink:  key.NewBinding(key.WithKeys("y"), key.WithHelp("y", "copy link")),
-		GitInfo:   key.NewBinding(key.WithKeys("g"), key.WithHelp("g", "git info")),
+		GitInfo:   key.NewBinding(key.WithKeys("i"), key.WithHelp("i", "git info")),
 		Copy:      key.NewBinding(key.WithKeys("c"), key.WithHelp("c", "copy file")),
 		Reload:    key.NewBinding(key.WithKeys("r"), key.WithHelp("r", "reload")),
 		HalfUp:    key.NewBinding(key.WithKeys("u"), key.WithHelp("u", "half-page up")),
