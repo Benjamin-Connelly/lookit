@@ -266,8 +266,16 @@ func (m *Model) handleNormalKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.fileList.ClearFilter()
 			return m, nil
 		}
-		// Return focus to file list from preview/side
-		if m.focus != PanelFileList {
+		// From side panel: close panel and return to preview
+		if m.focus == PanelSide {
+			m.sidePanel.Toggle(m.sidePanel.Type())
+			m.focus = PanelPreview
+			m.status.SetMode(m.modeString())
+			m.recalcLayout()
+			return m, nil
+		}
+		// From preview: return to file list
+		if m.focus == PanelPreview {
 			m.focus = PanelFileList
 			m.status.SetMode(m.modeString())
 		}
@@ -304,19 +312,43 @@ func (m *Model) handleNormalKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.handleFollowLink()
 
 	case "t":
-		m.sidePanel.Toggle(PanelTOC)
-		if m.sidePanel.Type() == PanelTOC && m.currentRawSource != "" {
+		// If already focused on TOC, close it and return to preview
+		if m.sidePanel.Type() == PanelTOC && m.focus == PanelSide {
+			m.sidePanel.Toggle(PanelTOC)
+			m.focus = PanelPreview
+			m.status.SetMode(m.modeString())
+			m.recalcLayout()
+			return m, nil
+		}
+		// Open TOC (or switch to it) and focus it
+		if m.sidePanel.Type() != PanelTOC {
+			m.sidePanel.Toggle(PanelTOC)
+		}
+		if m.currentRawSource != "" {
 			m.sidePanel.SetTOCFromMarkdown(m.currentRawSource)
 		}
+		m.focus = PanelSide
+		m.status.SetMode(m.modeString())
 		m.recalcLayout()
 		return m, nil
 
 	case "b":
-		m.sidePanel.Toggle(PanelBacklinks)
-		if m.sidePanel.Type() == PanelBacklinks {
-			backlinks := m.navigator.BacklinksAt(m.preview.filePath)
-			m.sidePanel.SetBacklinks(backlinks)
+		// If already focused on backlinks, close it and return to preview
+		if m.sidePanel.Type() == PanelBacklinks && m.focus == PanelSide {
+			m.sidePanel.Toggle(PanelBacklinks)
+			m.focus = PanelPreview
+			m.status.SetMode(m.modeString())
+			m.recalcLayout()
+			return m, nil
 		}
+		// Open backlinks (or switch to it) and focus it
+		if m.sidePanel.Type() != PanelBacklinks {
+			m.sidePanel.Toggle(PanelBacklinks)
+		}
+		backlinks := m.navigator.BacklinksAt(m.preview.filePath)
+		m.sidePanel.SetBacklinks(backlinks)
+		m.focus = PanelSide
+		m.status.SetMode(m.modeString())
 		m.recalcLayout()
 		return m, nil
 
@@ -336,7 +368,19 @@ func (m *Model) handleNormalKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case "M":
-		m.sidePanel.Toggle(PanelBookmarks)
+		// If already focused on bookmarks, close and return to preview
+		if m.sidePanel.Type() == PanelBookmarks && m.focus == PanelSide {
+			m.sidePanel.Toggle(PanelBookmarks)
+			m.focus = PanelPreview
+			m.status.SetMode(m.modeString())
+			m.recalcLayout()
+			return m, nil
+		}
+		if m.sidePanel.Type() != PanelBookmarks {
+			m.sidePanel.Toggle(PanelBookmarks)
+		}
+		m.focus = PanelSide
+		m.status.SetMode(m.modeString())
 		m.recalcLayout()
 		return m, nil
 
