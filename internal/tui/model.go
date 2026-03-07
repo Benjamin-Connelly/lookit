@@ -71,6 +71,11 @@ type Model struct {
 
 	// Track raw markdown source for TOC extraction
 	currentRawSource string
+
+	// Help overlay state
+	showingHelp     bool
+	helpPrevPath    string
+	helpPrevContent string
 }
 
 // New creates a new root TUI model.
@@ -151,6 +156,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case FileSelectedMsg:
+		m.showingHelp = false
 		return m.loadPreview(msg.Entry)
 
 	case PreviewLoadedMsg:
@@ -216,6 +222,13 @@ func (m *Model) handleNormalKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case "esc":
+		// Exit help view first
+		if m.showingHelp {
+			m.showingHelp = false
+			m.preview.SetContent(m.helpPrevPath, m.helpPrevContent)
+			m.status.SetFile(m.helpPrevPath)
+			return m, nil
+		}
 		// Clear frozen filter if active
 		if m.fileList.filter != "" {
 			m.fileList.ClearFilter()
@@ -235,6 +248,16 @@ func (m *Model) handleNormalKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case "?":
+		if m.showingHelp {
+			// Toggle off — restore previous preview
+			m.showingHelp = false
+			m.preview.SetContent(m.helpPrevPath, m.helpPrevContent)
+			m.status.SetFile(m.helpPrevPath)
+			return m, nil
+		}
+		m.helpPrevPath = m.preview.filePath
+		m.helpPrevContent = m.preview.content
+		m.showingHelp = true
 		content := Help(m.keys)
 		m.preview.SetContent("", content)
 		m.status.SetFile("Key Bindings")
