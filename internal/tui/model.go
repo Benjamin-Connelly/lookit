@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -76,6 +77,17 @@ type Model struct {
 	showingHelp     bool
 	helpPrevPath    string
 	helpPrevContent string
+
+	// Link cursor in preview (Tab/Shift-Tab navigation)
+	previewLinks   []previewLink
+	previewLinkIdx int // -1 = no link selected
+}
+
+// previewLink maps a link to its position in the rendered preview.
+type previewLink struct {
+	renderedLine int    // line number in the rendered content
+	target       string // link target path
+	text         string // link display text
 }
 
 // New creates a new root TUI model.
@@ -106,10 +118,11 @@ func New(cfg *config.Config, idx *index.Index, links *index.LinkGraph) *Model {
 		keys:         km,
 		mdRenderer:   mdRenderer,
 		codeRenderer: codeRenderer,
-		navigator:    nav,
-		sidePanel:    panel,
-		cmdPalette:   palette,
-		focus:        PanelFileList,
+		navigator:      nav,
+		sidePanel:      panel,
+		cmdPalette:     palette,
+		focus:          PanelFileList,
+		previewLinkIdx: -1,
 	}
 }
 
@@ -162,6 +175,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case PreviewLoadedMsg:
 		m.preview.SetContent(msg.Path, msg.Content)
 		m.status.SetFile(msg.Path)
+		m.buildPreviewLinks()
 		return m, nil
 
 	case LinkFollowMsg:
@@ -180,6 +194,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.preview.SetContent(msg.preview.Path, msg.preview.Content)
 		m.status.SetFile(msg.preview.Path)
 		m.currentRawSource = msg.rawSource
+		m.buildPreviewLinks()
 		// Update TOC if panel is open
 		if m.sidePanel.Type() == PanelTOC {
 			m.sidePanel.SetTOCFromMarkdown(msg.rawSource)
@@ -201,6 +216,10 @@ func (m *Model) handleNormalKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, tea.Quit
 
 	case "tab":
+		// In preview with links: Tab cycles links instead of switching panels
+		if m.focus == PanelPreview && len(m.previewLinks) > 0 {
+			return m.handlePreviewKey(msg)
+		}
 		if m.sidePanel.Visible() {
 			// Cycle: FileList -> Preview -> Side -> FileList
 			switch m.focus {
@@ -221,7 +240,20 @@ func (m *Model) handleNormalKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.status.SetMode(m.modeString())
 		return m, nil
 
+	case "shift+tab":
+		// In preview with links: Shift-Tab cycles links backward
+		if m.focus == PanelPreview && len(m.previewLinks) > 0 {
+			return m.handlePreviewKey(msg)
+		}
+		return m, nil
+
 	case "esc":
+		// Clear link highlight first
+		if m.previewLinkIdx >= 0 {
+			m.previewLinkIdx = -1
+			m.preview.highlightLine = -1
+			return m, nil
+		}
 		// Exit help view first
 		if m.showingHelp {
 			m.showingHelp = false
@@ -464,10 +496,61 @@ func (m *Model) handlePreviewKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "end", "G":
 		m.preview.ScrollToBottom()
 		return m, nil
+	case "tab":
+		if len(m.previewLinks) > 0 {
+			m.previewLinkIdx++
+			if m.previewLinkIdx >= len(m.previewLinks) {
+				m.previewLinkIdx = 0 // wrap around
+			}
+			m.scrollToLink()
+		}
+		return m, nil
+	case "shift+tab":
+		if len(m.previewLinks) > 0 {
+			m.previewLinkIdx--
+			if m.previewLinkIdx < 0 {
+				m.previewLinkIdx = len(m.previewLinks) - 1 // wrap around
+			}
+			m.scrollToLink()
+		}
+		return m, nil
+	case "enter":
+		if m.previewLinkIdx >= 0 && m.previewLinkIdx < len(m.previewLinks) {
+			target := m.previewLinks[m.previewLinkIdx].target
+			m.previewLinkIdx = -1
+			m.preview.highlightLine = -1
+			return m, func() tea.Msg {
+				return LinkFollowMsg{Target: target}
+			}
+		}
+		return m, nil
 	case "e":
 		return m.openInEditor()
 	}
 	return m, nil
+}
+
+// scrollToLink scrolls the preview to bring the current highlighted link into view.
+func (m *Model) scrollToLink() {
+	if m.previewLinkIdx < 0 || m.previewLinkIdx >= len(m.previewLinks) {
+		m.preview.highlightLine = -1
+		return
+	}
+	line := m.previewLinks[m.previewLinkIdx].renderedLine
+	m.preview.highlightLine = line
+
+	// Scroll so the link is visible, centered if possible
+	if line < m.preview.scroll || line >= m.preview.scroll+m.preview.height {
+		target := line - m.preview.height/3
+		if target < 0 {
+			target = 0
+		}
+		m.preview.scroll = target
+		max := m.preview.maxScroll()
+		if m.preview.scroll > max {
+			m.preview.scroll = max
+		}
+	}
 }
 
 func (m *Model) handleSidePanelKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
@@ -785,6 +868,52 @@ type previewWithSourceMsg struct {
 	rawSource string
 }
 
+// ansiRe strips ANSI escape sequences for plain-text search.
+var ansiRe = regexp.MustCompile(`\x1b\[[0-9;]*[a-zA-Z]`)
+
+// buildPreviewLinks finds link positions in the rendered preview content.
+func (m *Model) buildPreviewLinks() {
+	m.previewLinks = nil
+	m.previewLinkIdx = -1
+	m.preview.highlightLine = -1
+
+	if m.preview.filePath == "" {
+		return
+	}
+
+	links := m.navigator.LinksAt(m.preview.filePath)
+	if len(links) == 0 {
+		return
+	}
+
+	// Search rendered lines for each link's text
+	renderedLines := m.preview.lines
+	usedLines := make(map[int]bool) // avoid mapping two links to same line
+
+	for _, link := range links {
+		searchText := strings.ToLower(link.Text)
+		if searchText == "" {
+			searchText = strings.ToLower(link.Target)
+		}
+
+		for i, line := range renderedLines {
+			if usedLines[i] {
+				continue
+			}
+			plain := strings.ToLower(ansiRe.ReplaceAllString(line, ""))
+			if strings.Contains(plain, searchText) {
+				m.previewLinks = append(m.previewLinks, previewLink{
+					renderedLine: i,
+					target:       link.Target,
+					text:         link.Text,
+				})
+				usedLines[i] = true
+				break
+			}
+		}
+	}
+}
+
 func (m *Model) recalcLayout() {
 	borders := 1
 	if m.sidePanel.Visible() {
@@ -943,6 +1072,12 @@ func (m *Model) View() string {
 	m.status.width = m.width
 	m.status.focus = m.focus
 	m.status.showingHelp = m.showingHelp
+	m.status.linkActive = m.previewLinkIdx >= 0 && m.previewLinkIdx < len(m.previewLinks)
+	if m.status.linkActive {
+		m.status.linkText = m.previewLinks[m.previewLinkIdx].text
+	} else {
+		m.status.linkText = ""
+	}
 	return lipgloss.JoinVertical(lipgloss.Left, main, m.status.View())
 }
 

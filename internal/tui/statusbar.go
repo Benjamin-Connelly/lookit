@@ -14,6 +14,8 @@ type StatusBarModel struct {
 	mode        string
 	focus       Panel
 	showingHelp bool
+	linkActive  bool
+	linkText    string
 	width       int
 }
 
@@ -44,9 +46,16 @@ func (m StatusBarModel) contextHints() string {
 	if m.showingHelp {
 		return "esc:close help  ?:close help  q:quit"
 	}
+	if m.linkActive {
+		hint := "tab:next link  shift-tab:prev  enter:follow  esc:clear"
+		if m.linkText != "" {
+			hint = m.linkText + "  " + hint
+		}
+		return hint
+	}
 	switch m.focus {
 	case PanelPreview:
-		return "j/k:scroll  c:copy  e:edit  r:reload  y:link  esc:back"
+		return "j/k:scroll  tab:next link  enter:follow  c:copy  e:edit  esc:back"
 	case PanelSide:
 		return "j/k:scroll  enter:select  d:delete  esc:back"
 	default: // PanelFileList

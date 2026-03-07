@@ -9,17 +9,18 @@ import (
 
 // PreviewModel renders file content in the preview pane.
 type PreviewModel struct {
-	content  string
-	lines    []string
-	filePath string
-	scroll   int
-	width    int
-	height   int
+	content       string
+	lines         []string
+	filePath      string
+	scroll        int
+	width         int
+	height        int
+	highlightLine int // -1 = no highlight
 }
 
 // NewPreviewModel creates a preview pane.
 func NewPreviewModel() PreviewModel {
-	return PreviewModel{}
+	return PreviewModel{highlightLine: -1}
 }
 
 // SetContent updates the preview with rendered content.
@@ -28,6 +29,7 @@ func (m *PreviewModel) SetContent(path, content string) {
 	m.content = content
 	m.lines = strings.Split(content, "\n")
 	m.scroll = 0
+	m.highlightLine = -1
 }
 
 // ScrollUp scrolls the preview up.
@@ -85,7 +87,18 @@ func (m PreviewModel) View() string {
 		start = 0
 	}
 
-	visible := m.lines[start:end]
+	visible := make([]string, end-start)
+	copy(visible, m.lines[start:end])
+
+	// Highlight the line with the active link cursor
+	if m.highlightLine >= start && m.highlightLine < end {
+		idx := m.highlightLine - start
+		hlStyle := lipgloss.NewStyle().
+			Background(lipgloss.Color("236")).
+			Foreground(lipgloss.Color("81"))
+		visible[idx] = hlStyle.Render("▶ " + visible[idx])
+	}
+
 	result := strings.Join(visible, "\n")
 
 	// Scroll position indicator if content exceeds viewport

@@ -96,6 +96,13 @@ func Help(km KeyMap) string {
 	b.WriteString("  pgup/pgdn    page up/down (preview)\n")
 	b.WriteString("  ctrl+u/d     half-page up/down\n")
 
+	b.WriteString("\nLink Navigation (Preview)\n")
+	b.WriteString(strings.Repeat("-", 40) + "\n")
+	b.WriteString("  tab          jump to next link\n")
+	b.WriteString("  shift+tab    jump to previous link\n")
+	b.WriteString("  enter        follow highlighted link\n")
+	b.WriteString("  esc          clear link highlight\n")
+
 	b.WriteString("\nGeneral\n")
 	b.WriteString(strings.Repeat("-", 40) + "\n")
 	b.WriteString("  esc          close help / back to file list\n")
