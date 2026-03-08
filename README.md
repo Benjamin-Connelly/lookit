@@ -2,7 +2,7 @@
 
 **Dual-mode markdown navigator with inter-document link navigation.**
 
-Zero config. TUI and web modes. Syntax highlighting for 50+ languages. Git-aware. Broken link detection. Backlinks. Fuzzy search.
+Zero config. TUI and web modes. Full-text search. Syntax highlighting for 50+ languages. Git-aware. Broken link detection. Backlinks. Interactive link graph.
 
 <!-- ## Screenshots -->
 <!-- TODO: Add terminal screenshots -->
@@ -37,7 +37,7 @@ lookit doctor                   # Environment diagnostics
 
 | Feature | `python -m http.server` | `http-server` | `glow` | **lookit** |
 |---------|:-----------------------:|:-------------:|:------:|:----------:|
-| TUI file browser | No | No | Single file | **Split-pane, tree view, fuzzy search** |
+| TUI file browser | No | No | Single file | **Split-pane, tree view, fuzzy + full-text search** |
 | Web server | Yes | Yes | No | **Yes, with SSE live reload** |
 | Inter-document links | No | No | No | **History, backlinks, broken detection** |
 | Syntax highlighting | No | No | Yes | **50+ languages (TUI + web)** |
@@ -54,15 +54,23 @@ lookit doctor                   # Environment diagnostics
 Split-pane layout: collapsible file tree (left) + rendered preview (right). Side panels for TOC, backlinks, bookmarks, and git info.
 
 - **Fuzzy search** — `/` to filter files instantly, Enter to freeze results
-- **Preview search** — `/` in preview pane for in-document search, `n`/`N` for next/prev match
-- **Link navigation** — follow markdown links and `[[wikilinks]]` with history stack
+- **Full-text search** — Tab toggles to content search (Bleve BM25 index with snippets)
+- **Preview search** — `/` in preview pane for in-document search, `n`/`N` for next/prev match, Ctrl+R for regex
+- **Search history** — Up/Down cycles through previous search queries
+- **Link navigation** — follow markdown links and `[[wikilinks]]` with history stack, `#heading` anchor scrolling
 - **Link cursor** — Tab/Shift-Tab to cycle links in preview, Enter to follow
+- **Global heading jump** — Ctrl+G fuzzy picks any heading across all files
 - **Visual line select** — `V` to select lines, `y` to copy GitHub permalink for range
+- **Vim-style marks** — `m{a-z}` to set, `'{a-z}` to jump back
 - **Cursor line** — gutter marker tracks position, `H` toggles reading guide bar
 - **Side panels** — `t` TOC, `b` backlinks, `M` bookmarks, `i` git info
 - **Command palette** — `:` opens command mode, `:N` jumps to line N
+- **Data preview** — JSON pretty-print, CSV/TSV tables, YAML frontmatter cards
+- **Image info cards** — dimensions, size, format; `e` to open in system viewer
 - **Keybinding presets** — default, vim, emacs
-- **Themes** — light, dark, auto (detects terminal)
+- **Themes** — light, dark, auto, ascii (no color); Ctrl+T cycles at runtime
+- **Recent files** — persistent history across sessions
+- **Stdin pipe** — `echo '# Hello' | lookit` renders piped markdown
 - **Mouse** — wheel scrolling (enable with `mouse: true` in config)
 
 ### Web Mode
@@ -70,24 +78,33 @@ Split-pane layout: collapsible file tree (left) + rendered preview (right). Side
 Lightweight HTTP server with live reload.
 
 - **GitHub-style markdown** — GFM extensions, emoji, syntax highlighting
+- **Mermaid diagrams** — renders `mermaid` fenced code blocks client-side
+- **Interactive link graph** — D3.js force-directed graph at `/graph` with drag, zoom, click-to-navigate
 - **Directory listings** — git status badges, file icons, breadcrumbs
 - **Code viewing** — 50+ languages with line numbers and language badges
-- **Search** — Ctrl+K overlay with fuzzy file search and content search (git grep)
+- **Search** — Ctrl+K overlay with fuzzy file search and full-text content search (Bleve)
 - **Live reload** — SSE-based, updates on file save
+- **SSH detection** — prints URL instead of opening browser when connected via SSH
+- **Print stylesheet** — clean print layout via `?print=1`
+- **Custom CSS** — `--css path/to/custom.css` or `custom_css` in config
 - **Themes** — light/dark toggle, CSS custom properties
 - **Security headers** — CSP, X-Frame-Options, Referrer-Policy, Permissions-Policy
 - **ETag caching** — MD5-based for HTML, size+mtime for static
 
 ### Shared
 
-- **Link graph** — bidirectional tracking of `[text](target)` and `[[wikilink]]` links
-- **Broken link detection** — identifies links to nonexistent files
-- **File watcher** — fsnotify with 100ms debounce, auto-rebuilds index
+- **Full-text search** — Bleve persistent index with BM25 scoring, field boosting, and highlighted snippets
+- **Link graph** — bidirectional tracking of `[text](target)` and `[[wikilink]]` links with fragment validation
+- **Broken link detection** — identifies links to nonexistent files and invalid `#heading` anchors
+- **File watcher** — fsnotify with 100ms debounce, auto-rebuilds file and search indexes
 - **Git integration** — go-git for status, branches, log, permalinks (GitHub/GitLab/Bitbucket/Gitea/Codeberg)
+- **Per-project config** — `.lookit.toml` / `.lookit.yaml` discovered by walking up from CWD
 - **Plugin hooks** — YAML-defined hooks for content transformation (prepend/append/replace)
 - **Task extraction** — finds TODOs with priority (`!high`), tags (`#tag`), due dates (`@due(...)`)
 - **Export** — markdown to standalone HTML with embedded CSS and syntax highlighting
+- **Graph export** — `lookit graph` outputs DOT format for Graphviz visualization
 - **Doctor** — 8 environment checks with colored output
+- **Man pages** — `lookit gen-man` generates troff man pages
 
 ## Keybindings
 
@@ -119,7 +136,12 @@ Lightweight HTTP server with live reload.
 | `i` | Any | Toggle/focus git info panel |
 | `c` | Preview | Copy file to clipboard |
 | `r` | Preview | Reload file |
-| `e` | Any | Open in `$EDITOR` |
+| `e` | Any | Open in `$EDITOR` (images: system viewer) |
+| `m{a-z}` | Preview | Set mark at current position |
+| `'{a-z}` | Preview | Jump to mark |
+| `ctrl+g` | Any | Global heading jump (fuzzy picker) |
+| `ctrl+t` | Any | Cycle theme (auto → dark → light) |
+| `ctrl+r` | Search | Toggle regex search mode |
 | `:` | Any | Command palette |
 | `?` | Any | Toggle help overlay |
 | `backspace` | Any | Navigate back (history) |
@@ -151,35 +173,43 @@ Lightweight HTTP server with live reload.
 | Key | Action |
 |-----|--------|
 | Type | Fuzzy filter files |
+| `tab` | Toggle filename / content search |
 | `enter` | Freeze filter results |
 | `esc` | Clear filter |
 | `ctrl+u` | Clear input |
 | `ctrl+w` | Delete last word |
+| `up` / `down` | Cycle search history |
 
 ## Commands
 
 ```
 lookit [path]                    # TUI mode (default)
+  --keymap vim|emacs|default     # Keybinding preset
+  --theme dark|light|auto|ascii  # Color theme
+  --no-color                     # Alias for --theme ascii
+  --version, -V                  # Print version
 lookit serve [path]              # Web server
   --port, -p <port>              # Server port (default: 7777)
   --open                         # Open browser after starting
   --no-https                     # Disable HTTPS
-lookit cat <file>                # Render markdown to terminal
+  --css <path>                   # Custom CSS file
+lookit cat <file>                # Render markdown or image to terminal
 lookit export [path]             # Export to HTML
   --format html                  # Output format
   --output, -o <dir>             # Output directory
+lookit graph [path]              # Output link graph in DOT format
 lookit doctor                    # Environment diagnostics
-lookit version                   # Print version
 lookit completion [shell]        # Shell completions (bash/zsh/fish/powershell)
   --install                      # Auto-install without prompts
+cat file.md | lookit             # Render piped markdown
 ```
 
 ## Configuration
 
-Config file at `~/.config/lookit/config.yaml`:
+Global config at `~/.config/lookit/config.yaml`:
 
 ```yaml
-theme: auto          # light, dark, auto
+theme: auto          # light, dark, auto, ascii
 keymap: default      # default, vim, emacs
 mouse: false         # enable mouse wheel scrolling
 reading_guide: false # persistent reading guide bar
@@ -190,6 +220,7 @@ server:
   host: localhost
   no_https: false
   open: false
+  custom_css: ""     # path to custom CSS file
 
 git:
   enabled: true
@@ -201,6 +232,8 @@ ignore:
   - "vendor/"
 ```
 
+**Per-project config:** Place `.lookit.toml` or `.lookit.yaml` in your project root. Lookit walks up from the current directory and merges the first one found over the global config.
+
 CLI flags override config: `--theme dark`, `--keymap vim`, `-c /path/to/config.yaml`.
 
 Environment variables: `LOOKIT_THEME`, `LOOKIT_SERVER_PORT`, etc.
@@ -211,9 +244,14 @@ Environment variables: `LOOKIT_THEME`, `LOOKIT_SERVER_PORT`, etc.
 git clone https://github.com/Benjamin-Connelly/lookit.git
 cd lookit
 
-go build -o lookit ./cmd/lookit      # Build
-go test ./...                         # Test (48 tests across 7 packages)
+make build                            # Build binary
+make test                             # Run tests
+make man                              # Generate man pages
 go vet ./...                          # Lint
+
+# Or without make:
+go build -o lookit ./cmd/lookit
+go test ./...
 
 # Cross-compile
 GOOS=darwin GOARCH=arm64 CGO_ENABLED=0 go build -o lookit-darwin-arm64 ./cmd/lookit
@@ -251,8 +289,11 @@ lookit is built on the shoulders of excellent open source projects:
 - [Cobra](https://github.com/spf13/cobra) — CLI framework with subcommands and completions
 - [Viper](https://github.com/spf13/viper) — configuration management (YAML, env vars, flags)
 
-**Utilities**
+**Search**
+- [Bleve](https://github.com/blevesearch/bleve) — full-text search and indexing (BM25 scoring)
 - [fuzzy](https://github.com/sahilm/fuzzy) — fuzzy string matching
+
+**Utilities**
 - [clipboard](https://github.com/atotto/clipboard) — cross-platform clipboard access
 - [fsnotify](https://github.com/fsnotify/fsnotify) — cross-platform file system notifications
 
