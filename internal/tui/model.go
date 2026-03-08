@@ -791,6 +791,12 @@ func (m *Model) handlePreviewSearchKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.preview.searchQuery = ""
 		m.preview.computeMatches()
 		return m, nil
+	case "up":
+		m.preview.SearchHistoryUp()
+		return m, nil
+	case "down":
+		m.preview.SearchHistoryDown()
+		return m, nil
 	default:
 		ch := msg.String()
 		if len(ch) == 1 {

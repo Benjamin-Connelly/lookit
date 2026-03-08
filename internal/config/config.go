@@ -139,11 +139,44 @@ func Load(cfgFile string) (*Config, error) {
 		return nil, fmt.Errorf("parsing config: %w", err)
 	}
 
+	// Merge per-project config (walks up from CWD)
+	mergeProjectConfig(cfg)
+
 	if err := cfg.Validate(); err != nil {
 		return nil, err
 	}
 
 	return cfg, nil
+}
+
+// mergeProjectConfig walks up from CWD looking for .lookit.toml or .lookit.yaml
+// and merges any found settings into the config. Project config overrides global.
+func mergeProjectConfig(cfg *Config) {
+	dir, err := os.Getwd()
+	if err != nil {
+		return
+	}
+
+	for {
+		for _, name := range []string{".lookit.toml", ".lookit.yaml", ".lookit.yml"} {
+			path := filepath.Join(dir, name)
+			if _, err := os.Stat(path); err != nil {
+				continue
+			}
+			v := viper.New()
+			v.SetConfigFile(path)
+			if err := v.ReadInConfig(); err != nil {
+				continue
+			}
+			_ = v.Unmarshal(cfg)
+			return // Use first found, stop walking
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			break
+		}
+		dir = parent
+	}
 }
 
 // Watch starts watching the config file for changes and reloads on modification.

@@ -41,6 +41,8 @@ type PreviewModel struct {
 	searchQuery   string
 	searchMatches []int // line indices that match
 	searchCurrent int   // index into searchMatches (current match)
+	searchHistory []string
+	searchHistIdx int // -1 = editing new query, 0+ = browsing history
 }
 
 // NewPreviewModel creates a preview pane.
@@ -212,11 +214,50 @@ func (m *PreviewModel) EnterSearchMode() {
 	m.searchQuery = ""
 	m.searchMatches = nil
 	m.searchCurrent = 0
+	m.searchHistIdx = -1
 }
 
 // ExitSearchMode deactivates search input but keeps match highlights.
 func (m *PreviewModel) ExitSearchMode() {
 	m.searchMode = false
+	if m.searchQuery != "" {
+		// Deduplicate: remove if already in history
+		filtered := make([]string, 0, len(m.searchHistory))
+		for _, h := range m.searchHistory {
+			if h != m.searchQuery {
+				filtered = append(filtered, h)
+			}
+		}
+		m.searchHistory = append([]string{m.searchQuery}, filtered...)
+		if len(m.searchHistory) > 20 {
+			m.searchHistory = m.searchHistory[:20]
+		}
+	}
+}
+
+// SearchHistoryUp cycles to the previous search query.
+func (m *PreviewModel) SearchHistoryUp() {
+	if len(m.searchHistory) == 0 {
+		return
+	}
+	if m.searchHistIdx < len(m.searchHistory)-1 {
+		m.searchHistIdx++
+		m.searchQuery = m.searchHistory[m.searchHistIdx]
+		m.computeMatches()
+	}
+}
+
+// SearchHistoryDown cycles to the next (more recent) search query.
+func (m *PreviewModel) SearchHistoryDown() {
+	if m.searchHistIdx <= 0 {
+		m.searchHistIdx = -1
+		m.searchQuery = ""
+		m.computeMatches()
+		return
+	}
+	m.searchHistIdx--
+	m.searchQuery = m.searchHistory[m.searchHistIdx]
+	m.computeMatches()
 }
 
 // SearchInput appends a character to the search query and recomputes matches.
