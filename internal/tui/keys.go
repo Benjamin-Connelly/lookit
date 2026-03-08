@@ -129,6 +129,7 @@ func Help(km KeyMap) string {
 
 	b.WriteString("\nGeneral\n")
 	b.WriteString(strings.Repeat("-", 40) + "\n")
+	b.WriteString("  ctrl+t       cycle theme (auto/dark/light)\n")
 	b.WriteString("  esc          close help / back to file list\n")
 
 	b.WriteString("\nFilter Mode\n")

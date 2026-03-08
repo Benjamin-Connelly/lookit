@@ -91,6 +91,9 @@ type Model struct {
 	headingJumpInput string
 	headingJumpItems []headingJumpEntry
 	headingJumpCur   int
+
+	// Recent files persistence
+	recentFiles *config.RecentFiles
 }
 
 // headingJumpEntry is a heading from any file in the index.
@@ -144,6 +147,7 @@ func New(cfg *config.Config, idx *index.Index, links *index.LinkGraph) *Model {
 		cmdPalette:     palette,
 		focus:          PanelFileList,
 		previewLinkIdx: -1,
+		recentFiles:    config.LoadRecentFiles(),
 	}
 }
 
@@ -201,6 +205,10 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case FileSelectedMsg:
 		m.showingHelp = false
+		if m.recentFiles != nil {
+			m.recentFiles.Add(msg.Entry.Path)
+			_ = m.recentFiles.Save()
+		}
 		return m.loadPreview(msg.Entry)
 
 	case PreviewLoadedMsg:
@@ -352,6 +360,9 @@ func (m *Model) handleNormalKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.headingJumpCur = 0
 		m.status.SetMode("HEADING")
 		return m, nil
+
+	case "ctrl+t":
+		return m.cycleTheme()
 
 	case "?":
 		if m.showingHelp {
@@ -1585,4 +1596,33 @@ func (m *Model) filterHeadingJump() []headingJumpEntry {
 		}
 	}
 	return filtered
+}
+
+var themeOrder = []string{"auto", "dark", "light"}
+
+// cycleTheme rotates through auto → dark → light and re-renders.
+func (m *Model) cycleTheme() (*Model, tea.Cmd) {
+	current := m.cfg.Theme
+	next := "auto"
+	for i, t := range themeOrder {
+		if t == current {
+			next = themeOrder[(i+1)%len(themeOrder)]
+			break
+		}
+	}
+	m.cfg.Theme = next
+	m.mdRenderer, _ = render.NewMarkdownRenderer(next, 80)
+	m.codeRenderer = render.NewCodeRenderer(next, true)
+	m.status.SetMessage("Theme: " + next)
+
+	// Re-render current preview if one is loaded
+	if m.preview.filePath != "" {
+		entry := m.idx.Lookup(m.preview.filePath)
+		if entry != nil {
+			return m, func() tea.Msg {
+				return FileSelectedMsg{Entry: *entry}
+			}
+		}
+	}
+	return m, nil
 }
