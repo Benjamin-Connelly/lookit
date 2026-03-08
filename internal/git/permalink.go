@@ -121,6 +121,11 @@ func buildFileLink(baseURL string, style PermalinkStyle, ref, filePath string, s
 		link = fmt.Sprintf("%s/blob/%s/%s", baseURL, ref, filePath)
 	}
 
+	// Force code view for markdown files (rendered view hides line numbers)
+	if isMarkdownFile(filePath) && startLine > 0 {
+		link += "?plain=1"
+	}
+
 	link += lineFragment(style, startLine, endLine)
 	return link
 }
@@ -172,6 +177,12 @@ func detectStyle(url string) PermalinkStyle {
 	default:
 		return PermalinkGitHub
 	}
+}
+
+func isMarkdownFile(path string) bool {
+	lower := strings.ToLower(path)
+	return strings.HasSuffix(lower, ".md") || strings.HasSuffix(lower, ".markdown") ||
+		strings.HasSuffix(lower, ".mdown") || strings.HasSuffix(lower, ".mkd")
 }
 
 func normalizeRemoteURL(url string) string {
