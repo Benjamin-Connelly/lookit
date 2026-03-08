@@ -52,7 +52,7 @@ func (m *StatusBarModel) SetMode(mode string) {
 func (m StatusBarModel) contextHints() string {
 	if m.searchMode {
 		hint := fmt.Sprintf("/ %s (%d matches)", m.searchQuery, m.searchMatchCount)
-		return hint + "  enter/esc:close  type:search"
+		return hint + "  enter/esc:close  ctrl-r:regex  up/down:history"
 	}
 	if m.visualMode {
 		hint := "j/k:select lines  y:copy permalink  g/G:top/bottom  esc:cancel"

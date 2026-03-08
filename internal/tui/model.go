@@ -797,6 +797,14 @@ func (m *Model) handlePreviewSearchKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "down":
 		m.preview.SearchHistoryDown()
 		return m, nil
+	case "ctrl+r":
+		m.preview.ToggleSearchRegex()
+		mode := "SEARCH"
+		if m.preview.searchRegex {
+			mode = "REGEX"
+		}
+		m.status.SetMode(mode)
+		return m, nil
 	default:
 		ch := msg.String()
 		if len(ch) == 1 {

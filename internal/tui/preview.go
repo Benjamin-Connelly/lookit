@@ -42,7 +42,8 @@ type PreviewModel struct {
 	searchMatches []int // line indices that match
 	searchCurrent int   // index into searchMatches (current match)
 	searchHistory []string
-	searchHistIdx int // -1 = editing new query, 0+ = browsing history
+	searchHistIdx int  // -1 = editing new query, 0+ = browsing history
+	searchRegex   bool // true = regex mode, false = substring
 }
 
 // NewPreviewModel creates a preview pane.
@@ -274,18 +275,40 @@ func (m *PreviewModel) SearchBackspace() {
 	}
 }
 
-// computeMatches performs case-insensitive substring search across preview lines.
+// ToggleSearchRegex toggles between substring and regex search modes.
+func (m *PreviewModel) ToggleSearchRegex() {
+	m.searchRegex = !m.searchRegex
+	m.computeMatches()
+}
+
+// computeMatches performs case-insensitive search across preview lines.
 func (m *PreviewModel) computeMatches() {
 	m.searchMatches = nil
 	m.searchCurrent = 0
 	if m.searchQuery == "" {
 		return
 	}
+
+	var re *regexp.Regexp
+	if m.searchRegex {
+		var err error
+		re, err = regexp.Compile("(?i)" + m.searchQuery)
+		if err != nil {
+			return // Invalid regex, no matches
+		}
+	}
+
 	query := strings.ToLower(m.searchQuery)
 	for i, line := range m.lines {
 		plain := strings.ToLower(ansiStripRe.ReplaceAllString(line, ""))
-		if strings.Contains(plain, query) {
-			m.searchMatches = append(m.searchMatches, i)
+		if m.searchRegex {
+			if re.MatchString(plain) {
+				m.searchMatches = append(m.searchMatches, i)
+			}
+		} else {
+			if strings.Contains(plain, query) {
+				m.searchMatches = append(m.searchMatches, i)
+			}
 		}
 	}
 	if len(m.searchMatches) > 0 {
