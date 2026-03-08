@@ -127,12 +127,23 @@ var serveCmd = &cobra.Command{
 
 var catCmd = &cobra.Command{
 	Use:   "cat <file>",
-	Short: "Render markdown to terminal",
+	Short: "Render markdown or image to terminal",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		filePath := args[0]
 		if _, err := os.Stat(filePath); err != nil {
 			return fmt.Errorf("file not found: %s", filePath)
+		}
+
+		ext := strings.ToLower(filepath.Ext(filePath))
+		if isImageExt(ext) {
+			protocol := render.DetectImageProtocol()
+			out, err := render.RenderImageInline(filePath, protocol)
+			if err != nil {
+				return err
+			}
+			fmt.Print(out)
+			return nil
 		}
 
 		mdRenderer, err := render.NewMarkdownRenderer(cfg.Theme, 80)
@@ -148,6 +159,14 @@ var catCmd = &cobra.Command{
 		fmt.Print(out)
 		return nil
 	},
+}
+
+func isImageExt(ext string) bool {
+	switch ext {
+	case ".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp", ".svg", ".ico":
+		return true
+	}
+	return false
 }
 
 var exportCmd = &cobra.Command{

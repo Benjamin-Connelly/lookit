@@ -1176,6 +1176,12 @@ func (m *Model) openInEditor() (tea.Model, tea.Cmd) {
 		}
 	}
 
+	// Image files: open with system viewer instead of editor
+	ext := filepath.Ext(filePath)
+	if IsImageFile(ext) {
+		return m.openWithSystem(filePath)
+	}
+
 	editor := os.Getenv("EDITOR")
 	if editor == "" {
 		editor = "vi"
@@ -1195,6 +1201,22 @@ func (m *Model) openInEditor() (tea.Model, tea.Cmd) {
 			return FileSelectedMsg{Entry: *entry}
 		}
 		return StatusMsg{Text: "File edited"}
+	})
+}
+
+// openWithSystem opens a file using the platform's default application.
+func (m *Model) openWithSystem(filePath string) (tea.Model, tea.Cmd) {
+	opener := "xdg-open" // Linux
+	if _, err := exec.LookPath("open"); err == nil {
+		opener = "open" // macOS
+	}
+
+	c := exec.Command(opener, filePath)
+	return m, tea.ExecProcess(c, func(err error) tea.Msg {
+		if err != nil {
+			return StatusMsg{Text: "Open error: " + err.Error()}
+		}
+		return StatusMsg{Text: "Opened in system viewer"}
 	})
 }
 
