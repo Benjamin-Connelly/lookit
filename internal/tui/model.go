@@ -1215,18 +1215,12 @@ func (m *Model) loadPreview(entry index.FileEntry) (tea.Model, tea.Cmd) {
 
 		ext := filepath.Ext(entry.RelPath)
 
-		// Image files: use terminal image protocol or text fallback
+		// Image files: text-based info card (terminal image protocols are
+		// incompatible with Bubble Tea's alt-screen rendering)
 		if IsImageFile(ext) {
-			if imgRenderer != nil && imgRenderer.CanRender() {
-				rendered := imgRenderer.Render(entry.Path)
-				return PreviewLoadedMsg{
-					Path:    entry.RelPath,
-					Content: rendered,
-				}
-			}
 			return PreviewLoadedMsg{
 				Path:    entry.RelPath,
-				Content: fmt.Sprintf("[image: %s — no inline image protocol detected]", filepath.Base(entry.RelPath)),
+				Content: imgRenderer.Render(entry.Path),
 			}
 		}
 
@@ -1438,7 +1432,7 @@ func (m *Model) View() string {
 	}
 
 	// Narrow mode: <100 cols, show only the focused panel
-	narrow := m.width < 100
+	narrow := m.width < 80
 
 	var main string
 	if narrow {
