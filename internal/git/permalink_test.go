@@ -118,3 +118,81 @@ func TestLineFragment(t *testing.T) {
 		t.Errorf("expected empty for negative, got %q", f)
 	}
 }
+
+func TestIsMarkdownFile(t *testing.T) {
+	tests := []struct {
+		path string
+		want bool
+	}{
+		{"README.md", true},
+		{"docs/guide.markdown", true},
+		{"notes.mdown", true},
+		{"spec.mkd", true},
+		{"UPPER.MD", true},
+		{"main.go", false},
+		{"style.css", false},
+		{"data.json", false},
+		{"no-extension", false},
+	}
+	for _, tt := range tests {
+		got := isMarkdownFile(tt.path)
+		if got != tt.want {
+			t.Errorf("isMarkdownFile(%q) = %v, want %v", tt.path, got, tt.want)
+		}
+	}
+}
+
+func TestBuildFileLink_MarkdownPlain(t *testing.T) {
+	// Markdown files with line numbers should get ?plain=1
+	got := buildFileLink("https://github.com/user/repo", PermalinkGitHub, "abc123", "README.md", 10, 0)
+	want := "https://github.com/user/repo/blob/abc123/README.md?plain=1#L10"
+	if got != want {
+		t.Errorf("got  %q\nwant %q", got, want)
+	}
+
+	// Markdown without line numbers should NOT get ?plain=1
+	got = buildFileLink("https://github.com/user/repo", PermalinkGitHub, "abc123", "README.md", 0, 0)
+	want = "https://github.com/user/repo/blob/abc123/README.md"
+	if got != want {
+		t.Errorf("got  %q\nwant %q", got, want)
+	}
+
+	// Non-markdown with line numbers should NOT get ?plain=1
+	got = buildFileLink("https://github.com/user/repo", PermalinkGitHub, "abc123", "main.go", 10, 0)
+	want = "https://github.com/user/repo/blob/abc123/main.go#L10"
+	if got != want {
+		t.Errorf("got  %q\nwant %q", got, want)
+	}
+}
+
+func TestLineFragment_AllStyles(t *testing.T) {
+	tests := []struct {
+		name      string
+		style     PermalinkStyle
+		start     int
+		end       int
+		want      string
+	}{
+		{"github single", PermalinkGitHub, 5, 0, "#L5"},
+		{"github range", PermalinkGitHub, 5, 15, "#L5-L15"},
+		{"gitlab single", PermalinkGitLab, 5, 0, "#L5"},
+		{"gitlab range", PermalinkGitLab, 5, 15, "#L5-15"},
+		{"bitbucket single", PermalinkBitbucket, 5, 0, "#lines-5"},
+		{"bitbucket range", PermalinkBitbucket, 5, 15, "#lines-5:15"},
+		{"gitea single", PermalinkGitea, 5, 0, "#L5"},
+		{"gitea range", PermalinkGitea, 5, 15, "#L5-L15"},
+		{"codeberg single", PermalinkCodeberg, 5, 0, "#L5"},
+		{"codeberg range", PermalinkCodeberg, 5, 15, "#L5-L15"},
+		{"zero line", PermalinkGitHub, 0, 0, ""},
+		{"negative line", PermalinkGitLab, -1, 0, ""},
+		{"end equals start", PermalinkGitHub, 5, 5, "#L5"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := lineFragment(tt.style, tt.start, tt.end)
+			if got != tt.want {
+				t.Errorf("lineFragment(%v, %d, %d) = %q, want %q", tt.style, tt.start, tt.end, got, tt.want)
+			}
+		})
+	}
+}

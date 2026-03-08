@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -107,5 +108,110 @@ func TestString(t *testing.T) {
 	s := cfg.String()
 	if s == "" {
 		t.Error("String() should not be empty")
+	}
+}
+
+func TestConfigDir(t *testing.T) {
+	dir, err := ConfigDir()
+	if err != nil {
+		t.Fatalf("ConfigDir() error: %v", err)
+	}
+	if !filepath.IsAbs(dir) {
+		t.Errorf("expected absolute path, got %q", dir)
+	}
+	if !strings.HasSuffix(dir, filepath.Join(".config", "lookit")) {
+		t.Errorf("expected path ending in .config/lookit, got %q", dir)
+	}
+}
+
+func TestCreateDefault_New(t *testing.T) {
+	tmpHome := t.TempDir()
+	origHome := os.Getenv("HOME")
+	os.Setenv("HOME", tmpHome)
+	defer os.Setenv("HOME", origHome)
+
+	path, err := CreateDefault()
+	if err != nil {
+		t.Fatalf("CreateDefault() error: %v", err)
+	}
+	if path == "" {
+		t.Fatal("expected path to created config, got empty string")
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("reading created config: %v", err)
+	}
+	content := string(data)
+	if !strings.Contains(content, "theme: auto") {
+		t.Error("created config should contain 'theme: auto'")
+	}
+	if !strings.Contains(content, "port: 7777") {
+		t.Error("created config should contain 'port: 7777'")
+	}
+}
+
+func TestCreateDefault_Exists(t *testing.T) {
+	tmpHome := t.TempDir()
+	origHome := os.Getenv("HOME")
+	os.Setenv("HOME", tmpHome)
+	defer os.Setenv("HOME", origHome)
+
+	// Create config first
+	configDir := filepath.Join(tmpHome, ".config", "lookit")
+	os.MkdirAll(configDir, 0o755)
+	os.WriteFile(filepath.Join(configDir, "config.yaml"), []byte("theme: dark\n"), 0o644)
+
+	path, err := CreateDefault()
+	if err != nil {
+		t.Fatalf("CreateDefault() error: %v", err)
+	}
+	if path != "" {
+		t.Errorf("expected empty string for existing config, got %q", path)
+	}
+
+	// Verify original content preserved (no overwrite)
+	data, _ := os.ReadFile(filepath.Join(configDir, "config.yaml"))
+	if string(data) != "theme: dark\n" {
+		t.Error("existing config was overwritten")
+	}
+}
+
+func TestValidate_AsciiTheme(t *testing.T) {
+	cfg := DefaultConfig()
+	cfg.Theme = "ascii"
+	if err := cfg.Validate(); err != nil {
+		t.Errorf("ascii theme should be valid, got error: %v", err)
+	}
+}
+
+func TestValidate_EmptyStrings(t *testing.T) {
+	cfg := DefaultConfig()
+	cfg.Theme = ""
+	if err := cfg.Validate(); err == nil {
+		t.Error("empty theme should be invalid")
+	}
+
+	cfg = DefaultConfig()
+	cfg.Keymap = ""
+	if err := cfg.Validate(); err == nil {
+		t.Error("empty keymap should be invalid")
+	}
+}
+
+func TestLoad_EnvVarOverride(t *testing.T) {
+	dir := t.TempDir()
+	cfgPath := filepath.Join(dir, "config.yaml")
+	os.WriteFile(cfgPath, []byte("theme: light\nkeymap: default\n"), 0o644)
+
+	os.Setenv("LOOKIT_THEME", "dark")
+	defer os.Unsetenv("LOOKIT_THEME")
+
+	cfg, err := Load(cfgPath)
+	if err != nil {
+		t.Fatalf("Load() error: %v", err)
+	}
+	if cfg.Theme != "dark" {
+		t.Errorf("expected env override theme=dark, got %q", cfg.Theme)
 	}
 }
