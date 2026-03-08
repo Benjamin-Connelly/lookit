@@ -43,19 +43,29 @@ func (r *ImageRenderer) Render(path string) string {
 		}
 	}
 
+	const boxW = 39 // inner width between │ and │
+
+	pad := func(s string) string {
+		r := []rune(s)
+		if len(r) > boxW {
+			r = r[:boxW]
+		}
+		return string(r) + strings.Repeat(" ", boxW-len(r))
+	}
+
 	var b strings.Builder
 	b.WriteString("\n")
-	b.WriteString("  ┌─────────────────────────────────────┐\n")
-	b.WriteString(fmt.Sprintf("  │  %s\n", name))
-	b.WriteString("  │\n")
-	b.WriteString(fmt.Sprintf("  │  Type:  %s\n", strings.ToUpper(strings.TrimPrefix(ext, "."))))
-	b.WriteString(fmt.Sprintf("  │  Size:  %s\n", size))
+	b.WriteString("  ┌" + strings.Repeat("─", boxW) + "┐\n")
+	b.WriteString("  │" + pad("  "+name) + "│\n")
+	b.WriteString("  │" + pad("") + "│\n")
+	b.WriteString("  │" + pad("  Type:  "+strings.ToUpper(strings.TrimPrefix(ext, "."))) + "│\n")
+	b.WriteString("  │" + pad("  Size:  "+size) + "│\n")
 	if dims != "" {
-		b.WriteString(fmt.Sprintf("  │  Dims:  %s\n", dims))
+		b.WriteString("  │" + pad("  Dims:  "+dims) + "│\n")
 	}
-	b.WriteString("  │\n")
-	b.WriteString("  │  Press 'e' to open in external viewer\n")
-	b.WriteString("  └─────────────────────────────────────┘\n")
+	b.WriteString("  │" + pad("") + "│\n")
+	b.WriteString("  │" + pad("  Press 'e' to open externally") + "│\n")
+	b.WriteString("  └" + strings.Repeat("─", boxW) + "┘\n")
 
 	return b.String()
 }

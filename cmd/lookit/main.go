@@ -10,6 +10,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
+	"golang.org/x/term"
 
 	"github.com/Benjamin-Connelly/lookit/internal/config"
 	"github.com/Benjamin-Connelly/lookit/internal/doctor"
@@ -74,6 +75,13 @@ link navigation with history, backlinks, and broken link detection.`,
 		defer watcher.Close()
 		if err := watcher.Start(); err != nil {
 			return fmt.Errorf("watching files: %w", err)
+		}
+
+		// Check minimum terminal size
+		if w, h, err := term.GetSize(int(os.Stdout.Fd())); err == nil {
+			if w < 80 || h < 24 {
+				return fmt.Errorf("terminal too small (%dx%d). Lookit requires at least 80x24", w, h)
+			}
 		}
 
 		model := tui.New(cfg, idx, links)
