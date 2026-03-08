@@ -109,12 +109,16 @@ func New(cfg *config.Config, idx *index.Index, links *index.LinkGraph) *Model {
 	palette := NewCommandPalette()
 	palette.RegisterCommands(idx, links)
 
+	preview := NewPreviewModel()
+	preview.scrolloff = cfg.ScrollOff
+	preview.readingGuide = cfg.ReadingGuide
+
 	return &Model{
 		cfg:          cfg,
 		idx:          idx,
 		links:        links,
 		fileList:     NewFileListModel(idx),
-		preview:      NewPreviewModel(),
+		preview:      preview,
 		status:       NewStatusBarModel(),
 		keys:         km,
 		mdRenderer:   mdRenderer,
@@ -149,6 +153,9 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		if m.preview.visualMode {
 			return m.handleVisualKey(msg)
+		}
+		if m.preview.searchMode {
+			return m.handlePreviewSearchKey(msg)
 		}
 		if m.fileList.filtering {
 			return m.handleFilterKey(msg)
@@ -252,6 +259,13 @@ func (m *Model) handleNormalKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case "esc":
+		// Clear search highlights first
+		if m.preview.searchQuery != "" {
+			m.preview.searchQuery = ""
+			m.preview.searchMatches = nil
+			m.preview.searchCurrent = 0
+			return m, nil
+		}
 		// Clear link highlight first
 		if m.previewLinkIdx >= 0 {
 			m.previewLinkIdx = -1
@@ -286,6 +300,12 @@ func (m *Model) handleNormalKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case "/", "ctrl+k":
+		// When preview is focused, / opens preview search instead of file filter
+		if msg.String() == "/" && m.focus == PanelPreview {
+			m.preview.EnterSearchMode()
+			m.status.SetMode("SEARCH")
+			return m, nil
+		}
 		m.focus = PanelFileList
 		m.fileList.StartFilter()
 		m.status.SetMode("FILTER")
@@ -441,8 +461,8 @@ func (m *Model) handleNormalKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if m.preview.filePath == "" {
 			return m, nil
 		}
-		// Use current scroll position as line reference
-		line := m.preview.scroll + 1
+		// Use cursor position as line reference
+		line := m.preview.cursorLine + 1
 		return m, func() tea.Msg {
 			repo, err := gitpkg.Open(m.cfg.Root)
 			if err != nil {
@@ -466,6 +486,20 @@ func (m *Model) handleNormalKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		entry := m.navigator.Forward()
 		if entry != nil {
 			return m.navigateToPath(entry.Path, entry.Scroll)
+		}
+		return m, nil
+
+	case "n":
+		if m.focus == PanelPreview && len(m.preview.searchMatches) > 0 {
+			m.preview.NextMatch()
+			return m, nil
+		}
+		return m, nil
+
+	case "N":
+		if m.focus == PanelPreview && len(m.preview.searchMatches) > 0 {
+			m.preview.PrevMatch()
+			return m, nil
 		}
 		return m, nil
 	}
@@ -541,28 +575,45 @@ func (m *Model) handleFileListKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 func (m *Model) handlePreviewKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "up", "k":
-		m.preview.ScrollUp(1)
+		m.preview.CursorUp()
 		return m, nil
 	case "down", "j":
-		m.preview.ScrollDown(1)
+		m.preview.CursorDown()
+		return m, nil
+	case "n":
+		m.preview.NextMatch()
+		return m, nil
+	case "N":
+		m.preview.PrevMatch()
+		return m, nil
+	case "/":
+		m.preview.EnterSearchMode()
+		m.status.SetMode("SEARCH")
+		return m, nil
+	case "H":
+		m.preview.ToggleReadingGuide()
 		return m, nil
 	case "pgup", "ctrl+u":
 		m.preview.ScrollUp(m.preview.height / 2)
+		m.preview.CursorTo(m.preview.scroll + m.preview.scrolloff)
 		return m, nil
 	case "pgdown", "ctrl+d":
 		m.preview.ScrollDown(m.preview.height / 2)
+		m.preview.CursorTo(m.preview.scroll + m.preview.height - m.preview.scrolloff - 1)
 		return m, nil
 	case "u":
 		m.preview.ScrollUp(m.preview.height / 2)
+		m.preview.CursorTo(m.preview.scroll + m.preview.scrolloff)
 		return m, nil
 	case "d":
 		m.preview.ScrollDown(m.preview.height / 2)
+		m.preview.CursorTo(m.preview.scroll + m.preview.height - m.preview.scrolloff - 1)
 		return m, nil
 	case "home", "g":
-		m.preview.scroll = 0
+		m.preview.CursorTo(0)
 		return m, nil
 	case "end", "G":
-		m.preview.ScrollToBottom()
+		m.preview.CursorTo(len(m.preview.lines) - 1)
 		return m, nil
 	case "tab":
 		if len(m.previewLinks) > 0 {
@@ -600,6 +651,29 @@ func (m *Model) handlePreviewKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.openInEditor()
 	}
 	return m, nil
+}
+
+// handlePreviewSearchKey handles keys during preview search mode.
+func (m *Model) handlePreviewSearchKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "esc", "enter":
+		m.preview.ExitSearchMode()
+		m.status.SetMode(m.modeString())
+		return m, nil
+	case "backspace":
+		m.preview.SearchBackspace()
+		return m, nil
+	case "ctrl+u":
+		m.preview.searchQuery = ""
+		m.preview.computeMatches()
+		return m, nil
+	default:
+		ch := msg.String()
+		if len(ch) == 1 {
+			m.preview.SearchInput(rune(ch[0]))
+		}
+		return m, nil
+	}
 }
 
 // handleVisualKey handles keys during visual line selection mode.
@@ -1256,6 +1330,10 @@ func (m *Model) View() string {
 	} else {
 		m.status.linkText = ""
 	}
+	// Search state for status bar
+	m.status.searchMode = m.preview.searchMode
+	m.status.searchQuery = m.preview.searchQuery
+	m.status.searchMatchCount = len(m.preview.searchMatches)
 	return lipgloss.JoinVertical(lipgloss.Left, main, m.status.View())
 }
 

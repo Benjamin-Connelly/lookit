@@ -2,10 +2,14 @@ package tui
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
 )
+
+// ansiStripRe strips ANSI escape sequences for plain-text matching in search.
+var ansiStripRe = regexp.MustCompile(`\x1b\[[0-9;]*[a-zA-Z]`)
 
 // PreviewModel renders file content in the preview pane.
 type PreviewModel struct {
@@ -21,12 +25,22 @@ type PreviewModel struct {
 	sourceLineCount int  // total lines in source file
 	isCodeFile      bool // true = rendered lines map 1:1 to source
 
+	// Cursor tracking (normal + visual mode)
+	cursorLine   int  // current cursor position
+	scrolloff    int  // margin lines above/below cursor before scrolling
+	readingGuide bool // full-row highlight on cursor line
+
 	// Visual line selection
 	visualMode   bool
 	visualAnchor int // where selection started (fixed)
 	visualStart  int // min(anchor, cursor)
 	visualEnd    int // max(anchor, cursor)
-	cursorLine   int // current cursor position in visual mode
+
+	// Preview search
+	searchMode    bool
+	searchQuery   string
+	searchMatches []int // line indices that match
+	searchCurrent int   // index into searchMatches (current match)
 }
 
 // NewPreviewModel creates a preview pane.
@@ -43,6 +57,10 @@ func (m *PreviewModel) SetContent(path, content string) {
 	m.highlightLine = -1
 	m.visualMode = false
 	m.cursorLine = 0
+	m.searchMode = false
+	m.searchQuery = ""
+	m.searchMatches = nil
+	m.searchCurrent = 0
 }
 
 // SetSourceInfo stores metadata about the source file for line mapping.
@@ -51,10 +69,61 @@ func (m *PreviewModel) SetSourceInfo(lineCount int, isCode bool) {
 	m.isCodeFile = isCode
 }
 
-// EnterVisualMode starts line selection at the current scroll position.
+// CursorDown moves the cursor down one line, scrolling when hitting the scrolloff margin.
+func (m *PreviewModel) CursorDown() {
+	if m.cursorLine < len(m.lines)-1 {
+		m.cursorLine++
+	}
+	// Scroll when cursor passes the scrolloff margin at the bottom
+	bottomMargin := m.scroll + m.height - m.scrolloff - 1
+	if m.cursorLine > bottomMargin && m.scroll < m.maxScroll() {
+		m.scroll = m.cursorLine - m.height + m.scrolloff + 1
+		if m.scroll > m.maxScroll() {
+			m.scroll = m.maxScroll()
+		}
+	}
+}
+
+// CursorUp moves the cursor up one line, scrolling when hitting the scrolloff margin.
+func (m *PreviewModel) CursorUp() {
+	if m.cursorLine > 0 {
+		m.cursorLine--
+	}
+	// Scroll when cursor passes the scrolloff margin at the top
+	topMargin := m.scroll + m.scrolloff
+	if m.cursorLine < topMargin && m.scroll > 0 {
+		m.scroll = m.cursorLine - m.scrolloff
+		if m.scroll < 0 {
+			m.scroll = 0
+		}
+	}
+}
+
+// CursorTo moves the cursor to a specific line, adjusting scroll.
+func (m *PreviewModel) CursorTo(line int) {
+	if line < 0 {
+		line = 0
+	}
+	if line >= len(m.lines) {
+		line = len(m.lines) - 1
+	}
+	m.cursorLine = line
+	// Ensure cursor is visible
+	if m.cursorLine < m.scroll {
+		m.scroll = m.cursorLine
+	} else if m.cursorLine >= m.scroll+m.height {
+		m.scroll = m.cursorLine - m.height + 1
+	}
+}
+
+// ToggleReadingGuide toggles the full-row cursor highlight.
+func (m *PreviewModel) ToggleReadingGuide() {
+	m.readingGuide = !m.readingGuide
+}
+
+// EnterVisualMode starts line selection at the current cursor position.
 func (m *PreviewModel) EnterVisualMode() {
 	m.visualMode = true
-	m.cursorLine = m.scroll
 	m.visualAnchor = m.cursorLine
 	m.visualStart = m.cursorLine
 	m.visualEnd = m.cursorLine
@@ -137,6 +206,113 @@ func (m *PreviewModel) maxScroll() int {
 	return max
 }
 
+// EnterSearchMode activates search input in the preview pane.
+func (m *PreviewModel) EnterSearchMode() {
+	m.searchMode = true
+	m.searchQuery = ""
+	m.searchMatches = nil
+	m.searchCurrent = 0
+}
+
+// ExitSearchMode deactivates search input but keeps match highlights.
+func (m *PreviewModel) ExitSearchMode() {
+	m.searchMode = false
+}
+
+// SearchInput appends a character to the search query and recomputes matches.
+func (m *PreviewModel) SearchInput(r rune) {
+	m.searchQuery += string(r)
+	m.computeMatches()
+}
+
+// SearchBackspace removes the last character from the search query.
+func (m *PreviewModel) SearchBackspace() {
+	if len(m.searchQuery) > 0 {
+		m.searchQuery = m.searchQuery[:len(m.searchQuery)-1]
+		m.computeMatches()
+	}
+}
+
+// computeMatches performs case-insensitive substring search across preview lines.
+func (m *PreviewModel) computeMatches() {
+	m.searchMatches = nil
+	m.searchCurrent = 0
+	if m.searchQuery == "" {
+		return
+	}
+	query := strings.ToLower(m.searchQuery)
+	for i, line := range m.lines {
+		plain := strings.ToLower(ansiStripRe.ReplaceAllString(line, ""))
+		if strings.Contains(plain, query) {
+			m.searchMatches = append(m.searchMatches, i)
+		}
+	}
+	if len(m.searchMatches) > 0 {
+		m.scrollToMatch()
+	}
+}
+
+// NextMatch advances to the next search match.
+func (m *PreviewModel) NextMatch() {
+	if len(m.searchMatches) == 0 {
+		return
+	}
+	m.searchCurrent++
+	if m.searchCurrent >= len(m.searchMatches) {
+		m.searchCurrent = 0
+	}
+	m.scrollToMatch()
+}
+
+// PrevMatch goes to the previous search match.
+func (m *PreviewModel) PrevMatch() {
+	if len(m.searchMatches) == 0 {
+		return
+	}
+	m.searchCurrent--
+	if m.searchCurrent < 0 {
+		m.searchCurrent = len(m.searchMatches) - 1
+	}
+	m.scrollToMatch()
+}
+
+// scrollToMatch scrolls the viewport so the current match is visible.
+func (m *PreviewModel) scrollToMatch() {
+	if m.searchCurrent < 0 || m.searchCurrent >= len(m.searchMatches) {
+		return
+	}
+	line := m.searchMatches[m.searchCurrent]
+	if line < m.scroll || line >= m.scroll+m.height {
+		target := line - m.height/3
+		if target < 0 {
+			target = 0
+		}
+		m.scroll = target
+		max := m.maxScroll()
+		if m.scroll > max {
+			m.scroll = max
+		}
+	}
+}
+
+// isSearchMatch returns true if the given line index is in searchMatches.
+func (m *PreviewModel) isSearchMatch(lineIdx int) bool {
+	for _, idx := range m.searchMatches {
+		if idx == lineIdx {
+			return true
+		}
+	}
+	return false
+}
+
+// isCurrentSearchMatch returns true if lineIdx is the currently focused match.
+func (m *PreviewModel) isCurrentSearchMatch(lineIdx int) bool {
+	if m.searchCurrent < 0 || m.searchCurrent >= len(m.searchMatches) {
+		return false
+	}
+	return m.searchMatches[m.searchCurrent] == lineIdx
+}
+
 // gutterWidth returns the character width needed for line numbers.
 func (m PreviewModel) gutterWidth() int {
 	totalLines := len(m.lines)
@@ -183,9 +359,19 @@ func (m PreviewModel) View() string {
 	gutterSelStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("81")).Bold(true)
 	cursorGutterStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("226")).Bold(true)
 	selStyle := lipgloss.NewStyle().Background(lipgloss.Color("24"))
+	readingGuideStyle := lipgloss.NewStyle().Background(lipgloss.Color("236"))
 	linkHlStyle := lipgloss.NewStyle().
 		Background(lipgloss.Color("236")).
 		Foreground(lipgloss.Color("81"))
+	searchMatchStyle := lipgloss.NewStyle().
+		Background(lipgloss.Color("226")).
+		Foreground(lipgloss.Color("0"))
+	searchCurGutterStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("226")).
+		Bold(true)
+
+	hasSearch := m.searchQuery != "" && len(m.searchMatches) > 0
+	queryLower := strings.ToLower(m.searchQuery)
 
 	gw := m.gutterWidth()
 	lineNumFmt := fmt.Sprintf("%%%dd ", gw-1) // right-aligned, trailing space
@@ -196,12 +382,17 @@ func (m PreviewModel) View() string {
 		lineNum := lineIdx + 1 // 1-based
 
 		inSelection := m.visualMode && lineIdx >= m.visualStart && lineIdx <= m.visualEnd
-		isCursor := m.visualMode && lineIdx == m.cursorLine
+		isVisualCursor := m.visualMode && lineIdx == m.cursorLine
+		isNormalCursor := !m.visualMode && lineIdx == m.cursorLine
+		isMatch := hasSearch && m.isSearchMatch(lineIdx)
+		isCurMatch := hasSearch && m.isCurrentSearchMatch(lineIdx)
 
-		// Render gutter
+		// Render gutter — cursor marker in both normal and visual mode
 		numStr := fmt.Sprintf(lineNumFmt, lineNum)
-		if isCursor {
+		if isVisualCursor || isNormalCursor {
 			b.WriteString(cursorGutterStyle.Render(numStr))
+		} else if isCurMatch {
+			b.WriteString(searchCurGutterStyle.Render(numStr))
 		} else if inSelection {
 			b.WriteString(gutterSelStyle.Render(numStr))
 		} else {
@@ -213,6 +404,10 @@ func (m PreviewModel) View() string {
 			b.WriteString(linkHlStyle.Render("▶ " + line))
 		} else if inSelection {
 			b.WriteString(selStyle.Render(line))
+		} else if isNormalCursor && m.readingGuide {
+			b.WriteString(readingGuideStyle.Render(line))
+		} else if isMatch {
+			b.WriteString(highlightSearchInLine(line, queryLower, searchMatchStyle))
 		} else {
 			b.WriteString(line)
 		}
@@ -236,4 +431,43 @@ func (m PreviewModel) View() string {
 	}
 
 	return result
+}
+
+// highlightSearchInLine highlights all case-insensitive occurrences of query
+// in a line. ANSI sequences are stripped before matching; matched substrings
+// are rendered with the given style on the plain text.
+func highlightSearchInLine(line, queryLower string, style lipgloss.Style) string {
+	plain := ansiStripRe.ReplaceAllString(line, "")
+	plainLower := strings.ToLower(plain)
+
+	var positions [][2]int
+	searchFrom := 0
+	qLen := len(queryLower)
+	for {
+		idx := strings.Index(plainLower[searchFrom:], queryLower)
+		if idx < 0 {
+			break
+		}
+		start := searchFrom + idx
+		positions = append(positions, [2]int{start, start + qLen})
+		searchFrom = start + qLen
+	}
+
+	if len(positions) == 0 {
+		return line
+	}
+
+	var b strings.Builder
+	lastEnd := 0
+	for _, pos := range positions {
+		if pos[0] > lastEnd {
+			b.WriteString(plain[lastEnd:pos[0]])
+		}
+		b.WriteString(style.Render(plain[pos[0]:pos[1]]))
+		lastEnd = pos[1]
+	}
+	if lastEnd < len(plain) {
+		b.WriteString(plain[lastEnd:])
+	}
+	return b.String()
 }

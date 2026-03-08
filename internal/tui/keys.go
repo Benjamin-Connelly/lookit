@@ -92,9 +92,11 @@ func Help(km KeyMap) string {
 
 	b.WriteString("\nNavigation\n")
 	b.WriteString(strings.Repeat("-", 40) + "\n")
+	b.WriteString("  j/k          move cursor (with scrolloff)\n")
 	b.WriteString("  g/G          go to top/bottom\n")
 	b.WriteString("  pgup/pgdn    page up/down (preview)\n")
 	b.WriteString("  ctrl+u/d     half-page up/down\n")
+	b.WriteString("  H            toggle reading guide bar\n")
 
 	b.WriteString("\nLink Navigation (Preview)\n")
 	b.WriteString(strings.Repeat("-", 40) + "\n")
@@ -110,6 +112,13 @@ func Help(km KeyMap) string {
 	b.WriteString("  y            copy permalink for selection\n")
 	b.WriteString("  g/G          select to top/bottom\n")
 	b.WriteString("  esc          cancel selection\n")
+
+	b.WriteString("\nPreview Search\n")
+	b.WriteString(strings.Repeat("-", 40) + "\n")
+	b.WriteString("  /            search in preview (when focused)\n")
+	b.WriteString("  n            next match\n")
+	b.WriteString("  N            previous match\n")
+	b.WriteString("  enter/esc    close search input\n")
 
 	b.WriteString("\nGeneral\n")
 	b.WriteString(strings.Repeat("-", 40) + "\n")

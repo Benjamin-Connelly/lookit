@@ -33,6 +33,12 @@ type Config struct {
 	// Mouse enables mouse wheel scrolling in TUI
 	Mouse bool `mapstructure:"mouse"`
 
+	// ReadingGuide shows a full-row highlight on the cursor line
+	ReadingGuide bool `mapstructure:"reading_guide"`
+
+	// ScrollOff keeps this many lines visible above/below the cursor
+	ScrollOff int `mapstructure:"scrolloff"`
+
 	// Debug enables verbose logging
 	Debug bool `mapstructure:"debug"`
 }
@@ -85,9 +91,10 @@ func (c *Config) String() string {
 // DefaultConfig returns configuration with sensible defaults.
 func DefaultConfig() *Config {
 	return &Config{
-		Root:   ".",
-		Theme:  "auto",
-		Keymap: "default",
+		Root:      ".",
+		Theme:     "auto",
+		Keymap:    "default",
+		ScrollOff: 5,
 		Server: ServerConfig{
 			Port: 7777,
 			Host: "localhost",

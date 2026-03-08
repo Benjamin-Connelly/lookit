@@ -9,16 +9,19 @@ import (
 
 // StatusBarModel renders the bottom status bar.
 type StatusBarModel struct {
-	filePath    string
-	message     string
-	mode        string
-	focus       Panel
-	showingHelp bool
-	linkActive  bool
-	linkText    string
-	visualMode  bool
-	visualRange string
-	width       int
+	filePath         string
+	message          string
+	mode             string
+	focus            Panel
+	showingHelp      bool
+	linkActive       bool
+	linkText         string
+	visualMode       bool
+	visualRange      string
+	searchMode       bool
+	searchQuery      string
+	searchMatchCount int
+	width            int
 }
 
 // NewStatusBarModel creates a status bar.
@@ -45,6 +48,10 @@ func (m *StatusBarModel) SetMode(mode string) {
 
 // contextHints returns panel-specific keybinding hints.
 func (m StatusBarModel) contextHints() string {
+	if m.searchMode {
+		hint := fmt.Sprintf("/ %s (%d matches)", m.searchQuery, m.searchMatchCount)
+		return hint + "  enter/esc:close  type:search"
+	}
 	if m.visualMode {
 		hint := "j/k:select lines  y:copy permalink  g/G:top/bottom  esc:cancel"
 		if m.visualRange != "" {
@@ -64,7 +71,7 @@ func (m StatusBarModel) contextHints() string {
 	}
 	switch m.focus {
 	case PanelPreview:
-		return "j/k:scroll  tab:next link  enter:follow  c:copy  e:edit  esc:back"
+		return "j/k:move  /:search  n/N:match  H:guide  V:select  tab:link  esc:back"
 	case PanelSide:
 		return "j/k:scroll  enter:select  d:delete  esc:back"
 	default: // PanelFileList
