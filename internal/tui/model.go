@@ -94,6 +94,18 @@ type Model struct {
 
 	// Recent files persistence
 	recentFiles *config.RecentFiles
+
+	// Vim-style marks: m{a-z} sets, '{a-z} jumps
+	marks        map[rune]mark
+	pendingMark  bool // waiting for mark register key
+	pendingJump  bool // waiting for jump register key
+}
+
+// mark records a position for vim-style marks.
+type mark struct {
+	File   string
+	Cursor int
+	Scroll int
 }
 
 // headingJumpEntry is a heading from any file in the index.
@@ -148,6 +160,7 @@ func New(cfg *config.Config, idx *index.Index, links *index.LinkGraph) *Model {
 		focus:          PanelFileList,
 		previewLinkIdx: -1,
 		recentFiles:    config.LoadRecentFiles(),
+		marks:          make(map[rune]mark),
 	}
 }
 
@@ -174,6 +187,50 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Link selection overlay intercepts keys when showing
 		if m.navigator.IsShowingLinks() {
 			return m.handleLinkSelectKey(msg)
+		}
+		// Mark register: waiting for a-z after pressing m
+		if m.pendingMark {
+			m.pendingMark = false
+			m.status.SetMode(m.modeString())
+			k := msg.String()
+			if len(k) == 1 && k[0] >= 'a' && k[0] <= 'z' {
+				m.marks[rune(k[0])] = mark{
+					File:   m.preview.filePath,
+					Cursor: m.preview.cursorLine,
+					Scroll: m.preview.scroll,
+				}
+				m.status.SetMessage("Mark '" + k + "' set")
+				return m, m.clearStatusAfter()
+			}
+			return m, nil
+		}
+		// Jump to mark: waiting for a-z after pressing '
+		if m.pendingJump {
+			m.pendingJump = false
+			m.status.SetMode(m.modeString())
+			k := msg.String()
+			if len(k) == 1 && k[0] >= 'a' && k[0] <= 'z' {
+				mk, ok := m.marks[rune(k[0])]
+				if !ok {
+					m.status.SetMessage("Mark '" + k + "' not set")
+					return m, m.clearStatusAfter()
+				}
+				// Navigate to the marked file and position
+				if mk.File != m.preview.filePath {
+					entry := m.idx.Lookup(mk.File)
+					if entry != nil {
+						m.preview.scroll = mk.Scroll
+						m.preview.cursorLine = mk.Cursor
+						return m, func() tea.Msg {
+							return FileSelectedMsg{Entry: *entry}
+						}
+					}
+				} else {
+					m.preview.scroll = mk.Scroll
+					m.preview.cursorLine = mk.Cursor
+				}
+			}
+			return m, nil
 		}
 		if m.preview.visualMode {
 			return m.handleVisualKey(msg)
@@ -430,7 +487,13 @@ func (m *Model) handleNormalKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case "m":
-		// Add current file as bookmark
+		if m.focus == PanelPreview && m.preview.filePath != "" {
+			// Vim-style mark: wait for register key
+			m.pendingMark = true
+			m.status.SetMode("MARK")
+			return m, nil
+		}
+		// File list: add current file as bookmark
 		if m.preview.filePath != "" {
 			title := filepath.Base(m.preview.filePath)
 			m.sidePanel.AddBookmark(Bookmark{
@@ -441,6 +504,14 @@ func (m *Model) handleNormalKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m, func() tea.Msg {
 				return StatusMsg{Text: "Bookmarked: " + title}
 			}
+		}
+		return m, nil
+
+	case "'":
+		if m.focus == PanelPreview {
+			m.pendingJump = true
+			m.status.SetMode("JUMP")
+			return m, nil
 		}
 		return m, nil
 
@@ -1596,6 +1667,13 @@ func (m *Model) filterHeadingJump() []headingJumpEntry {
 		}
 	}
 	return filtered
+}
+
+// clearStatusAfter returns a command that clears the status message after 3 seconds.
+func (m *Model) clearStatusAfter() tea.Cmd {
+	return tea.Tick(3*time.Second, func(time.Time) tea.Msg {
+		return clearStatusMsg{}
+	})
 }
 
 var themeOrder = []string{"auto", "dark", "light"}

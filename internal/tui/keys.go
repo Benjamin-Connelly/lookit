@@ -127,6 +127,11 @@ func Help(km KeyMap) string {
 	b.WriteString("  enter        jump to heading\n")
 	b.WriteString("  esc          cancel\n")
 
+	b.WriteString("\nMarks (Preview)\n")
+	b.WriteString(strings.Repeat("-", 40) + "\n")
+	b.WriteString("  m{a-z}       set mark at current position\n")
+	b.WriteString("  '{a-z}       jump to mark\n")
+
 	b.WriteString("\nGeneral\n")
 	b.WriteString(strings.Repeat("-", 40) + "\n")
 	b.WriteString("  ctrl+t       cycle theme (auto/dark/light)\n")
