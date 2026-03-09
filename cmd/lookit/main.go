@@ -15,6 +15,7 @@ import (
 	"golang.org/x/term"
 
 	"github.com/Benjamin-Connelly/lookit/internal/config"
+	"github.com/Benjamin-Connelly/lookit/internal/manpages"
 	"github.com/Benjamin-Connelly/lookit/internal/doctor"
 	"github.com/Benjamin-Connelly/lookit/internal/export"
 	"github.com/Benjamin-Connelly/lookit/internal/index"
@@ -310,7 +311,8 @@ var genManCmd = &cobra.Command{
 		if len(args) > 0 {
 			dir = args[0]
 		}
-		if err := os.MkdirAll(dir, 0o755); err != nil {
+		manDir := filepath.Join(dir, "man1")
+		if err := os.MkdirAll(manDir, 0o755); err != nil {
 			return err
 		}
 		header := &doc.GenManHeader{
@@ -318,7 +320,31 @@ var genManCmd = &cobra.Command{
 			Section: "1",
 			Source:  "lookit " + version,
 		}
-		return doc.GenManTree(rootCmd, header, dir)
+		if err := doc.GenManTree(rootCmd, header, manDir); err != nil {
+			return err
+		}
+
+		// Copy to embed directory so they're included in the binary
+		embedDir := filepath.Join("internal", "manpages", "pages")
+		if err := os.MkdirAll(embedDir, 0o755); err != nil {
+			return err
+		}
+		entries, err := os.ReadDir(manDir)
+		if err != nil {
+			return err
+		}
+		for _, entry := range entries {
+			if entry.IsDir() {
+				continue
+			}
+			data, err := os.ReadFile(filepath.Join(manDir, entry.Name()))
+			if err != nil {
+				continue
+			}
+			_ = os.WriteFile(filepath.Join(embedDir, entry.Name()), data, 0o644)
+		}
+		fmt.Printf("Generated %d man pages in %s and %s\n", len(entries), manDir, embedDir)
+		return nil
 	},
 }
 
@@ -724,6 +750,9 @@ func runRemote(target *remote.Target) error {
 }
 
 func main() {
+	// Auto-install man pages on first run or version change
+	manpages.Install(version)
+
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
 	}
