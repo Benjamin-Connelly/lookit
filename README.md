@@ -16,7 +16,7 @@ curl -sSL https://raw.githubusercontent.com/Benjamin-Connelly/lookit/master/inst
 # Or specify install directory and version
 curl -sSL https://raw.githubusercontent.com/Benjamin-Connelly/lookit/master/install.sh | sh -s -- --dir /usr/local/bin
 
-# From source (requires Go 1.24+)
+# From source (requires Go 1.26+)
 go install github.com/Benjamin-Connelly/lookit/cmd/lookit@latest
 ```
 
@@ -298,7 +298,7 @@ GOOS=darwin GOARCH=arm64 CGO_ENABLED=0 go build -o lookit-darwin-arm64 ./cmd/loo
 GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -o lookit-linux-arm64 ./cmd/lookit
 ```
 
-Requires Go 1.24+. Pure Go, no CGO.
+Requires Go 1.26+. Pure Go, no CGO.
 
 ## Contributing
 
