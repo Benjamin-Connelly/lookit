@@ -477,6 +477,16 @@ func TestSyncer_SetOnChange(t *testing.T) {
 	}
 }
 
+func TestSyncer_SingleFileField(t *testing.T) {
+	conn := NewConn(Target{Host: "h", Path: "/path/to/file.md"})
+	syncer := NewSyncer(conn, t.TempDir())
+
+	// singleFile should be false initially (set during sync based on Stat)
+	if syncer.singleFile {
+		t.Error("singleFile should be false before sync")
+	}
+}
+
 // --- Roundtrip parse → string tests ---
 
 func TestParseTarget_Roundtrip(t *testing.T) {

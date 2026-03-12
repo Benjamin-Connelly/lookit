@@ -37,6 +37,7 @@ type Syncer struct {
 	conn       *Conn
 	cacheDir   string // local cache root (e.g. ~/.cache/lookit/remote/host/path)
 	remotePath string
+	singleFile bool // true when remotePath points to a file, not a directory
 
 	status SyncStatus
 	mu     sync.RWMutex
@@ -150,6 +151,7 @@ func (s *Syncer) pollLoop() {
 }
 
 // doSync walks the remote tree and downloads all files.
+// If the remote path is a single file, it downloads just that file.
 func (s *Syncer) doSync() error {
 	client := s.conn.SFTP()
 	if client == nil {
@@ -161,9 +163,30 @@ func (s *Syncer) doSync() error {
 		return fmt.Errorf("creating cache dir: %w", err)
 	}
 
+	// Check if remote path is a file or directory
+	info, err := client.Stat(s.remotePath)
+	if err != nil {
+		return fmt.Errorf("stat remote path %s: %w", s.remotePath, err)
+	}
+
+	// Single file mode: download just that file
+	if !info.IsDir() {
+		s.singleFile = true
+		filename := filepath.Base(s.remotePath)
+		localPath := filepath.Join(s.cacheDir, filename)
+		if err := s.downloadFile(client, s.remotePath, localPath); err != nil {
+			return fmt.Errorf("download %s: %w", filename, err)
+		}
+		s.mu.Lock()
+		s.mtimeCache[filename] = info.ModTime()
+		s.status.FilesTotal = 1
+		s.mu.Unlock()
+		return nil
+	}
+
 	// Walk remote tree
 	fileCount := 0
-	err := s.walkRemote(client, s.remotePath, func(remotePath string, info os.FileInfo) error {
+	err = s.walkRemote(client, s.remotePath, func(remotePath string, info os.FileInfo) error {
 		rel, err := filepath.Rel(s.remotePath, remotePath)
 		if err != nil {
 			return nil
@@ -205,6 +228,31 @@ func (s *Syncer) pollChanges() (bool, error) {
 	client := s.conn.SFTP()
 	if client == nil {
 		return false, fmt.Errorf("not connected")
+	}
+
+	// Single file mode: just check if the one file changed
+	if s.singleFile {
+		info, err := client.Stat(s.remotePath)
+		if err != nil {
+			return false, fmt.Errorf("stat remote file: %w", err)
+		}
+		filename := filepath.Base(s.remotePath)
+
+		s.mu.RLock()
+		cached, exists := s.mtimeCache[filename]
+		s.mu.RUnlock()
+
+		if !exists || !info.ModTime().Equal(cached) {
+			localPath := filepath.Join(s.cacheDir, filename)
+			if err := s.downloadFile(client, s.remotePath, localPath); err != nil {
+				return false, fmt.Errorf("update %s: %w", filename, err)
+			}
+			s.mu.Lock()
+			s.mtimeCache[filename] = info.ModTime()
+			s.mu.Unlock()
+			return true, nil
+		}
+		return false, nil
 	}
 
 	changed := false

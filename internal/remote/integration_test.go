@@ -130,6 +130,72 @@ func TestIntegration_InitialSync(t *testing.T) {
 	}
 }
 
+func TestIntegration_SingleFileSync(t *testing.T) {
+	// Connect to remote and find a file to test with
+	target := Target{Host: testHost, Path: testPath}
+	conn := NewConn(target)
+
+	if err := conn.Connect(); err != nil {
+		t.Fatalf("Connect: %v", err)
+	}
+	defer conn.Close()
+
+	resolved := conn.Target()
+
+	// Find a .md file in the remote directory
+	entries, err := conn.SFTP().ReadDir(resolved.Path)
+	if err != nil {
+		t.Fatalf("ReadDir: %v", err)
+	}
+
+	var mdFile string
+	for _, e := range entries {
+		if !e.IsDir() && filepath.Ext(e.Name()) == ".md" {
+			mdFile = e.Name()
+			break
+		}
+	}
+	if mdFile == "" {
+		t.Skip("no .md files found in remote test directory")
+	}
+
+	// Now sync a single file path
+	singleTarget := Target{Host: testHost, Path: resolved.Path + "/" + mdFile}
+	singleConn := NewConn(singleTarget)
+
+	if err := singleConn.Connect(); err != nil {
+		t.Fatalf("Connect single file: %v", err)
+	}
+	defer singleConn.Close()
+
+	cacheDir := t.TempDir()
+	syncer := NewSyncer(singleConn, cacheDir)
+
+	if err := syncer.InitialSync(); err != nil {
+		t.Fatalf("InitialSync single file: %v", err)
+	}
+
+	status := syncer.Status()
+	if status.FilesTotal != 1 {
+		t.Errorf("FilesTotal = %d, want 1", status.FilesTotal)
+	}
+	if status.State != SyncIdle {
+		t.Errorf("state = %v, want SyncIdle", status.State)
+	}
+
+	// Verify the file was cached
+	cached := filepath.Join(cacheDir, mdFile)
+	data, err := os.ReadFile(cached)
+	if err != nil {
+		t.Fatalf("reading cached file: %v", err)
+	}
+	if len(data) == 0 {
+		t.Error("cached file is empty")
+	}
+
+	t.Logf("Single-file sync OK: %s (%d bytes)", mdFile, len(data))
+}
+
 func TestIntegration_SyncIdempotent(t *testing.T) {
 	target := Target{Host: testHost, Path: testPath}
 	conn := NewConn(target)
