@@ -10,16 +10,17 @@ Zero config. TUI and web modes. Full-text search. Syntax highlighting for 50+ la
 ## Install
 
 ```bash
-# From source
-go install github.com/Benjamin-Connelly/lookit/cmd/lookit@latest
+# Quick install (no dependencies required)
+curl -sSL https://raw.githubusercontent.com/Benjamin-Connelly/lookit/master/install.sh | sh
 
-# Or clone and build
-git clone https://github.com/Benjamin-Connelly/lookit.git
-cd lookit
-go build -o lookit ./cmd/lookit
+# Or specify install directory and version
+curl -sSL https://raw.githubusercontent.com/Benjamin-Connelly/lookit/master/install.sh | sh -s -- --dir /usr/local/bin
+
+# From source (requires Go 1.24+)
+go install github.com/Benjamin-Connelly/lookit/cmd/lookit@latest
 ```
 
-Requires Go 1.24+. Pure Go, no CGO — cross-compiles to linux/darwin on amd64/arm64.
+Pre-built binaries available for linux/darwin on amd64/arm64. Pure Go, no CGO.
 
 ## Quick Start
 
