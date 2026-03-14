@@ -25,7 +25,7 @@ import (
 	"github.com/Benjamin-Connelly/lookit/internal/web"
 )
 
-var version = "v0.2.2"
+var version = "v0.2.3"
 
 var cfg *config.Config
 
@@ -82,7 +82,7 @@ Supports browsing remote files over SSH:
 			}
 		}
 
-		root, err := resolveRoot(args)
+		root, initialFile, err := resolveRoot(args)
 		if err != nil {
 			return err
 		}
@@ -122,6 +122,9 @@ Supports browsing remote files over SSH:
 		}
 
 		model := tui.New(cfg, idx, links)
+		if initialFile != "" {
+			model.SelectFile(initialFile)
+		}
 		p := tea.NewProgram(model, tea.WithAltScreen())
 		_, err = p.Run()
 		return err
@@ -133,7 +136,7 @@ var serveCmd = &cobra.Command{
 	Short: "Start the web server",
 	Args:  cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		root, err := resolveRoot(args)
+		root, _, err := resolveRoot(args)
 		if err != nil {
 			return err
 		}
@@ -229,7 +232,7 @@ var exportCmd = &cobra.Command{
 	Short: "Export markdown files to HTML or PDF",
 	Args:  cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		root, err := resolveRoot(args)
+		root, _, err := resolveRoot(args)
 		if err != nil {
 			return err
 		}
@@ -272,7 +275,7 @@ var graphCmd = &cobra.Command{
 	Short: "Output link graph in DOT format",
 	Args:  cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		root, err := resolveRoot(args)
+		root, _, err := resolveRoot(args)
 		if err != nil {
 			return err
 		}
@@ -589,23 +592,28 @@ func loadConfig(cmd *cobra.Command, args []string) error {
 	return cfg.Validate()
 }
 
-func resolveRoot(args []string) (string, error) {
-	root := cfg.Root
+// resolveRoot returns the root directory and an optional initial file path.
+// When the argument is a file, root is its parent directory and initialFile
+// is the filename relative to root. When the argument is a directory,
+// initialFile is empty.
+func resolveRoot(args []string) (root string, initialFile string, err error) {
+	rawRoot := cfg.Root
 	if len(args) > 0 {
-		root = args[0]
+		rawRoot = args[0]
 	}
-	absRoot, err := filepath.Abs(root)
+	absRoot, err := filepath.Abs(rawRoot)
 	if err != nil {
-		return "", fmt.Errorf("resolving root path: %w", err)
+		return "", "", fmt.Errorf("resolving root path: %w", err)
 	}
 	info, err := os.Stat(absRoot)
 	if err != nil {
-		return "", fmt.Errorf("root path %q: %w", absRoot, err)
+		return "", "", fmt.Errorf("root path %q: %w", absRoot, err)
 	}
 	if !info.IsDir() {
-		return "", fmt.Errorf("root path %q is not a directory", absRoot)
+		// Single file: use parent as root, file as initial selection
+		return filepath.Dir(absRoot), filepath.Base(absRoot), nil
 	}
-	return absRoot, nil
+	return absRoot, "", nil
 }
 
 // resolveRemoteTarget checks if the arg is a remote path spec or a named

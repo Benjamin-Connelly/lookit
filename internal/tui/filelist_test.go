@@ -1,6 +1,8 @@
 package tui
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/Benjamin-Connelly/lookit/internal/index"
@@ -271,5 +273,95 @@ func TestFileListModel_MoveUp_Scrolling(t *testing.T) {
 
 	if m.cursor < m.offset {
 		t.Error("cursor should be >= offset after scrolling up")
+	}
+}
+
+// testFileListModel creates a FileListModel with a real index for integration-style tests.
+func testFileListModel(t *testing.T) FileListModel {
+	t.Helper()
+	dir := t.TempDir()
+	os.WriteFile(filepath.Join(dir, "README.md"), []byte("# Hello\n"), 0o644)
+	os.WriteFile(filepath.Join(dir, "main.go"), []byte("package main\n"), 0o644)
+	os.MkdirAll(filepath.Join(dir, "docs"), 0o755)
+	os.WriteFile(filepath.Join(dir, "docs", "guide.md"), []byte("# Guide\n"), 0o644)
+	os.MkdirAll(filepath.Join(dir, "docs", "api"), 0o755)
+	os.WriteFile(filepath.Join(dir, "docs", "api", "ref.md"), []byte("# Ref\n"), 0o644)
+
+	idx := index.New(dir)
+	if err := idx.Build(); err != nil {
+		t.Fatalf("index.Build: %v", err)
+	}
+	return NewFileListModel(idx)
+}
+
+func TestFileListModel_SelectByPath_RootFile(t *testing.T) {
+	m := testFileListModel(t)
+
+	m.SelectByPath("README.md")
+
+	sel := m.SelectedVisible()
+	if sel == nil {
+		t.Fatal("expected a selected entry")
+	}
+	if sel.RelPath != "README.md" {
+		t.Errorf("expected README.md, got %s", sel.RelPath)
+	}
+}
+
+func TestFileListModel_SelectByPath_NestedFile(t *testing.T) {
+	m := testFileListModel(t)
+
+	// docs/ starts collapsed — SelectByPath must expand it
+	if !m.collapsed["docs"] {
+		t.Fatal("docs should start collapsed")
+	}
+
+	m.SelectByPath("docs/guide.md")
+
+	// docs/ should now be expanded
+	if m.collapsed["docs"] {
+		t.Error("docs should be expanded after SelectByPath")
+	}
+
+	sel := m.SelectedVisible()
+	if sel == nil {
+		t.Fatal("expected a selected entry")
+	}
+	if sel.RelPath != "docs/guide.md" {
+		t.Errorf("expected docs/guide.md, got %s", sel.RelPath)
+	}
+}
+
+func TestFileListModel_SelectByPath_DeeplyNested(t *testing.T) {
+	m := testFileListModel(t)
+
+	m.SelectByPath("docs/api/ref.md")
+
+	// Both docs/ and docs/api/ should be expanded
+	if m.collapsed["docs"] {
+		t.Error("docs should be expanded")
+	}
+	if m.collapsed["docs/api"] {
+		t.Error("docs/api should be expanded")
+	}
+
+	sel := m.SelectedVisible()
+	if sel == nil {
+		t.Fatal("expected a selected entry")
+	}
+	if sel.RelPath != "docs/api/ref.md" {
+		t.Errorf("expected docs/api/ref.md, got %s", sel.RelPath)
+	}
+}
+
+func TestFileListModel_SelectByPath_NonExistent(t *testing.T) {
+	m := testFileListModel(t)
+	original := m.cursor
+
+	m.SelectByPath("nonexistent.md")
+
+	// Cursor should remain unchanged
+	if m.cursor != original {
+		t.Errorf("cursor should not move for non-existent file, got %d", m.cursor)
 	}
 }

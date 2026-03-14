@@ -221,6 +221,34 @@ func (m *FileListModel) ClearFilter() {
 	m.offset = 0
 }
 
+// SelectByPath positions the cursor on the file with the given relative path.
+// It expands any collapsed parent directories so the file is visible.
+func (m *FileListModel) SelectByPath(relPath string) {
+	// Expand parent directories so the file becomes visible
+	parts := strings.Split(filepath.Dir(relPath), string(filepath.Separator))
+	path := ""
+	for _, part := range parts {
+		if part == "." {
+			continue
+		}
+		if path == "" {
+			path = part
+		} else {
+			path = path + string(filepath.Separator) + part
+		}
+		delete(m.collapsed, path)
+	}
+	m.rebuildVisible()
+
+	// Find the file in the visible tree
+	for i, node := range m.visible {
+		if node.entry.RelPath == relPath {
+			m.cursor = i
+			return
+		}
+	}
+}
+
 // MoveUp moves the cursor up.
 func (m *FileListModel) MoveUp() {
 	if m.cursor > 0 {

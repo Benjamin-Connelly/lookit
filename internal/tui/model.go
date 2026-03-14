@@ -181,6 +181,12 @@ func New(cfg *config.Config, idx *index.Index, links *index.LinkGraph) *Model {
 	}
 }
 
+// SelectFile pre-selects a file by relative path on startup.
+// Must be called before Run().
+func (m *Model) SelectFile(relPath string) {
+	m.fileList.SelectByPath(relPath)
+}
+
 // SetRemoteInfo updates the remote connection display state.
 // Safe to call from any goroutine.
 func (m *Model) SetRemoteInfo(info *RemoteInfo) {
