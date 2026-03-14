@@ -18,10 +18,17 @@ render as an image.
 .PP
 An interactive graph is also available at /graph when using "lookit serve".
 
+.PP
+Use --json for machine-readable output (nodes and edges with metadata).
+
 
 .SH OPTIONS
 \fB-h\fP, \fB--help\fP[=false]
 	help for graph
+
+.PP
+\fB--json\fP[=false]
+	output as JSON (nodes and edges)
 
 
 .SH OPTIONS INHERITED FROM PARENT COMMANDS
@@ -45,7 +52,7 @@ An interactive graph is also available at /graph when using "lookit serve".
 .EX
   lookit graph
   lookit graph | dot -Tpng -o links.png
-  lookit graph ~/docs | dot -Tsvg -o graph.svg
+  lookit graph --json | jq '.nodes | length'
 .EE
 
 

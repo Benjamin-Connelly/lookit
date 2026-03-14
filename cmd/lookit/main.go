@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -238,18 +239,62 @@ Image files are displayed inline using your terminal's image protocol
 (auto-detected: Kitty, iTerm2, WezTerm, Ghostty). Non-PNG images
 (WebP, BMP, GIF, JPEG) are converted to PNG for protocol compatibility.
 
-Supported image formats: PNG, JPG, WebP, BMP, GIF, SVG, ICO`,
+Supported image formats: PNG, JPG, WebP, BMP, GIF, SVG, ICO
+
+Use --json for machine-readable output (file path, size, format, content).`,
 	Example: `  lookit cat README.md
   lookit cat diagram.png
-  lookit cat photo.webp`,
+  lookit cat --json README.md`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		filePath := args[0]
-		if _, err := os.Stat(filePath); err != nil {
+		info, err := os.Stat(filePath)
+		if err != nil {
 			return fmt.Errorf("file not found: %s", filePath)
 		}
 
+		jsonOut, _ := cmd.Flags().GetBool("json")
+
 		ext := strings.ToLower(filepath.Ext(filePath))
+
+		if jsonOut {
+			data, err := os.ReadFile(filePath)
+			if err != nil {
+				return fmt.Errorf("reading %s: %w", filePath, err)
+			}
+			format := "text"
+			if isMarkdownExt(ext) {
+				format = "markdown"
+			} else if isImageExt(ext) {
+				format = "image"
+			}
+			// Check for binary
+			sample := data
+			if len(sample) > 8192 {
+				sample = sample[:8192]
+			}
+			for _, b := range sample {
+				if b == 0 {
+					format = "binary"
+					break
+				}
+			}
+			result := struct {
+				File    string `json:"file"`
+				Size    int64  `json:"size"`
+				Format  string `json:"format"`
+				Content string `json:"content,omitempty"`
+			}{
+				File:   filePath,
+				Size:   info.Size(),
+				Format: format,
+			}
+			if format != "binary" && format != "image" {
+				result.Content = string(data)
+			}
+			return json.NewEncoder(os.Stdout).Encode(result)
+		}
+
 		if isImageExt(ext) {
 			protocol := render.DetectImageProtocol()
 			out, err := render.RenderImageInline(filePath, protocol)
@@ -273,6 +318,14 @@ Supported image formats: PNG, JPG, WebP, BMP, GIF, SVG, ICO`,
 		fmt.Print(out)
 		return nil
 	},
+}
+
+func isMarkdownExt(ext string) bool {
+	switch strings.ToLower(ext) {
+	case ".md", ".markdown", ".mdown":
+		return true
+	}
+	return false
 }
 
 func isImageExt(ext string) bool {
@@ -343,10 +396,12 @@ Nodes are markdown files, edges are links between them (standard markdown
 links and [[wikilinks]]). Pipe to dot, neato, or other Graphviz tools to
 render as an image.
 
-An interactive graph is also available at /graph when using "lookit serve".`,
+An interactive graph is also available at /graph when using "lookit serve".
+
+Use --json for machine-readable output (nodes and edges with metadata).`,
 	Example: `  lookit graph
   lookit graph | dot -Tpng -o links.png
-  lookit graph ~/docs | dot -Tsvg -o graph.svg`,
+  lookit graph --json | jq '.nodes | length'`,
 	Args: cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		root, _, err := resolveRoot(args)
@@ -359,10 +414,58 @@ An interactive graph is also available at /graph when using "lookit serve".`,
 			return fmt.Errorf("building index: %w", err)
 		}
 
-		links := index.NewLinkGraph()
-		links.BuildFromIndex(idx)
+		graphLinks := index.NewLinkGraph()
+		graphLinks.BuildFromIndex(idx)
 
-		fmt.Print(links.ToDOT())
+		jsonOut, _ := cmd.Flags().GetBool("json")
+		if jsonOut {
+			type graphNode struct {
+				ID    string `json:"id"`
+				Links int    `json:"links"`
+			}
+			type graphEdge struct {
+				Source string `json:"source"`
+				Target string `json:"target"`
+				Text   string `json:"text,omitempty"`
+				Broken bool   `json:"broken,omitempty"`
+			}
+			type graphData struct {
+				Nodes []graphNode `json:"nodes"`
+				Edges []graphEdge `json:"edges"`
+			}
+
+			nodeSet := make(map[string]bool)
+			var edges []graphEdge
+			for _, entry := range idx.Entries() {
+				if !entry.IsMarkdown {
+					continue
+				}
+				fwd := graphLinks.ForwardLinks(entry.RelPath)
+				if len(fwd) == 0 {
+					continue
+				}
+				nodeSet[entry.RelPath] = true
+				for _, link := range fwd {
+					nodeSet[link.Target] = true
+					edges = append(edges, graphEdge{
+						Source: link.Source,
+						Target: link.Target,
+						Text:   link.Text,
+						Broken: link.Broken,
+					})
+				}
+			}
+
+			var nodes []graphNode
+			for id := range nodeSet {
+				linkCount := len(graphLinks.ForwardLinks(id)) + len(graphLinks.Backlinks(id))
+				nodes = append(nodes, graphNode{ID: id, Links: linkCount})
+			}
+
+			return json.NewEncoder(os.Stdout).Encode(graphData{Nodes: nodes, Edges: edges})
+		}
+
+		fmt.Print(graphLinks.ToDOT())
 		return nil
 	},
 }
@@ -616,8 +719,12 @@ func init() {
 	serveCmd.Flags().Bool("no-https", false, "disable HTTPS even if certs exist")
 	serveCmd.Flags().String("css", "", "path to custom CSS file")
 
+	catCmd.Flags().Bool("json", false, "output as JSON (file, size, format, content)")
+
 	exportCmd.Flags().StringP("format", "f", "html", "export format (html|pdf)")
 	exportCmd.Flags().StringP("output", "o", "", "output directory")
+
+	graphCmd.Flags().Bool("json", false, "output as JSON (nodes and edges)")
 
 	completionCmd.Flags().Bool("install", false, "auto-detect shell and install without prompts")
 

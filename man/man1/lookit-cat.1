@@ -21,10 +21,17 @@ Image files are displayed inline using your terminal's image protocol
 .PP
 Supported image formats: PNG, JPG, WebP, BMP, GIF, SVG, ICO
 
+.PP
+Use --json for machine-readable output (file path, size, format, content).
+
 
 .SH OPTIONS
 \fB-h\fP, \fB--help\fP[=false]
 	help for cat
+
+.PP
+\fB--json\fP[=false]
+	output as JSON (file, size, format, content)
 
 
 .SH OPTIONS INHERITED FROM PARENT COMMANDS
@@ -48,7 +55,7 @@ Supported image formats: PNG, JPG, WebP, BMP, GIF, SVG, ICO
 .EX
   lookit cat README.md
   lookit cat diagram.png
-  lookit cat photo.webp
+  lookit cat --json README.md
 .EE
 
 
