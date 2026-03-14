@@ -10,7 +10,6 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
 	"github.com/spf13/cobra/doc"
 	"golang.org/x/term"
@@ -26,7 +25,7 @@ import (
 	"github.com/Benjamin-Connelly/lookit/internal/web"
 )
 
-var version = "v0.3.1"
+var version = "v0.3.2"
 
 var cfg *config.Config
 
@@ -664,36 +663,40 @@ func runRemote(target *remote.Target) error {
 
 	fmt.Fprintf(os.Stderr, "Connected to %s. Indexing...\n", resolved.Display())
 
-	// Build afero filesystem: SFTP reads cached in memory with 30s TTL
+	// Use SFTP filesystem directly (no CacheOnReadFs — its directory
+	// handling adds excessive round trips over SSH)
 	sftpFs := remote.NewSFTPFs(conn.SFTP())
-	cachedFs := afero.NewCacheOnReadFs(sftpFs, afero.NewMemMapFs(), 30*time.Second)
 
-	// Resolve root: if target is a file, use parent dir and pre-select
+	// Resolve root: if target is a file, build a single-entry index
+	// instead of walking the parent directory (which could be huge)
 	root := resolved.Path
 	var initialFile string
-	if info, err := cachedFs.Stat(root); err == nil && !info.IsDir() {
+	var idx *index.Index
+
+	info, err := sftpFs.Stat(root)
+	if err != nil {
+		return fmt.Errorf("stat remote path: %w", err)
+	}
+
+	if !info.IsDir() {
+		// Single file: create index with just this entry
 		initialFile = filepath.Base(root)
 		root = filepath.Dir(root)
+		idx = index.NewWithFs(root, sftpFs)
+		idx.AddFile(resolved.Path, initialFile, info.Size(), info.ModTime())
+	} else {
+		// Directory: walk via SFTP
+		idx = index.NewWithFs(root, sftpFs)
+		if err := idx.Build(); err != nil {
+			return fmt.Errorf("building index: %w", err)
+		}
 	}
-
-	// Build index directly from remote filesystem
-	idx := index.NewWithFs(root, cachedFs)
-	if err := idx.Build(); err != nil {
-		return fmt.Errorf("building index: %w", err)
-	}
-
-	// Build fulltext search index (in-memory for remote)
-	if err := idx.BuildFulltext(""); err != nil {
-		fmt.Fprintf(os.Stderr, "warning: fulltext index unavailable: %v\n", err)
-	}
-	defer idx.CloseFulltext()
 
 	links := index.NewLinkGraph()
-	links.BuildFromIndex(idx)
 
 	fmt.Fprintf(os.Stderr, "Ready. Starting TUI...\n")
 
-	// Create TUI with remote info
+	// Create TUI with remote info (fulltext + link graph build in background)
 	model := tui.New(cfg, idx, links)
 	if initialFile != "" {
 		model.SelectFile(initialFile)
@@ -703,11 +706,16 @@ func runRemote(target *remote.Target) error {
 		State:   conn.State().String(),
 	})
 
-	// Background poller: rebuild index periodically to detect remote changes
+	// Background: build fulltext + link graph, then poll for changes
 	done := make(chan struct{})
 	defer close(done)
+	defer idx.CloseFulltext()
 	lastRefresh := time.Now()
 	go func() {
+		// Build link graph and fulltext in background (reads files over SFTP)
+		links.BuildFromIndex(idx)
+		_ = idx.BuildFulltext("")
+
 		ticker := time.NewTicker(1 * time.Second)
 		defer ticker.Stop()
 		for {
@@ -735,7 +743,7 @@ func runRemote(target *remote.Target) error {
 	}()
 
 	p := tea.NewProgram(model, tea.WithAltScreen())
-	_, err := p.Run()
+	_, err = p.Run()
 	return err
 }
 

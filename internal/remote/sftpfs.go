@@ -4,6 +4,8 @@ import (
 	"errors"
 	"io"
 	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/pkg/sftp"
@@ -141,5 +143,51 @@ func (d *sftpDir) Seek(offset int64, whence int) (int64, error) { return 0, erro
 func (d *sftpDir) Write(p []byte) (int, error)                  { return 0, errReadOnly }
 func (d *sftpDir) WriteAt(p []byte, off int64) (int, error)     { return 0, errReadOnly }
 func (d *sftpDir) WriteString(s string) (ret int, err error)    { return 0, errReadOnly }
-func (d *sftpDir) Sync() error                                  { return nil }
-func (d *sftpDir) Truncate(size int64) error                    { return errReadOnly }
+func (d *sftpDir) Sync() error                               { return nil }
+func (d *sftpDir) Truncate(size int64) error                  { return errReadOnly }
+
+// WalkFunc is the callback for Walk.
+type WalkFunc func(path string, info os.FileInfo, err error) error
+
+// Walk traverses the directory tree rooted at root using SFTP ReadDir
+// (one round trip per directory) instead of individual Stat calls.
+func (s *SFTPFs) Walk(root string, fn WalkFunc) error {
+	info, err := s.client.Stat(root)
+	if err != nil {
+		return fn(root, nil, err)
+	}
+	return s.walk(root, info, fn)
+}
+
+func (s *SFTPFs) walk(path string, info os.FileInfo, fn WalkFunc) error {
+	if !info.IsDir() {
+		return fn(path, info, nil)
+	}
+
+	if err := fn(path, info, nil); err != nil {
+		if err == filepath.SkipDir {
+			return nil
+		}
+		return err
+	}
+
+	entries, err := s.client.ReadDir(path)
+	if err != nil {
+		return fn(path, info, err)
+	}
+
+	for _, entry := range entries {
+		name := entry.Name()
+		if strings.HasPrefix(name, ".") {
+			continue
+		}
+		child := path + "/" + name
+		if err := s.walk(child, entry, fn); err != nil {
+			if err == filepath.SkipDir {
+				continue
+			}
+			return err
+		}
+	}
+	return nil
+}

@@ -105,6 +105,13 @@ var hiddenDirs = map[string]bool{
 	".git": true, ".hg": true, ".svn": true, ".bzr": true,
 }
 
+// FastWalker is an optional interface that filesystems can implement
+// for optimized directory traversal (e.g., SFTP uses ReadDir instead
+// of per-file Stat calls).
+type FastWalker interface {
+	Walk(root string, fn func(path string, info os.FileInfo, err error) error) error
+}
+
 // Build walks the root directory and populates the index.
 func (idx *Index) Build() error {
 	idx.mu.Lock()
@@ -116,7 +123,7 @@ func (idx *Index) Build() error {
 
 	gitignore := loadGitignore(idx.fs, idx.root)
 
-	err := afero.Walk(idx.fs, idx.root, func(path string, info os.FileInfo, err error) error {
+	walkFn := func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return nil
 		}
@@ -175,7 +182,16 @@ func (idx *Index) Build() error {
 		}
 
 		return nil
-	})
+	}
+
+	// Use fast walker if available (e.g., SFTP ReadDir is one round
+	// trip per directory vs per-file Stat calls in afero.Walk)
+	var err error
+	if fw, ok := idx.fs.(FastWalker); ok {
+		err = fw.Walk(idx.root, walkFn)
+	} else {
+		err = afero.Walk(idx.fs, idx.root, walkFn)
+	}
 	if err != nil {
 		return err
 	}
@@ -239,6 +255,25 @@ func (idx *Index) Lookup(relPath string) *FileEntry {
 // Root returns the index root directory.
 func (idx *Index) Root() string {
 	return idx.root
+}
+
+// AddFile adds a single file entry to the index without walking.
+// The path must be absolute; relPath is relative to the index root.
+func (idx *Index) AddFile(absPath, relPath string, size int64, modTime time.Time) {
+	idx.mu.Lock()
+	defer idx.mu.Unlock()
+
+	entry := FileEntry{
+		Path:       absPath,
+		RelPath:    relPath,
+		Size:       size,
+		ModTime:    modTime,
+		IsMarkdown: isMarkdown(filepath.Base(relPath)),
+	}
+	idx.entries = append(idx.entries, entry)
+	idx.byPath[relPath] = &idx.entries[len(idx.entries)-1]
+	idx.stats.FileCount++
+	idx.stats.TotalSize += size
 }
 
 // Stats returns aggregate statistics about the index.
