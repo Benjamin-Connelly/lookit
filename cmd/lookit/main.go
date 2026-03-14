@@ -20,8 +20,10 @@ import (
 	"github.com/Benjamin-Connelly/lookit/internal/export"
 	"github.com/Benjamin-Connelly/lookit/internal/index"
 	"github.com/Benjamin-Connelly/lookit/internal/manpages"
+	"github.com/Benjamin-Connelly/lookit/internal/plugin"
 	"github.com/Benjamin-Connelly/lookit/internal/remote"
 	"github.com/Benjamin-Connelly/lookit/internal/render"
+	"github.com/Benjamin-Connelly/lookit/internal/tasks"
 	"github.com/Benjamin-Connelly/lookit/internal/tui"
 	"github.com/Benjamin-Connelly/lookit/internal/web"
 )
@@ -29,6 +31,7 @@ import (
 var version = "v0.4.0-dev"
 
 var cfg *config.Config
+var plugins *plugin.Registry
 
 var rootCmd = &cobra.Command{
 	Use:     "lookit [path]",
@@ -118,9 +121,11 @@ TUI keybindings (press ? for full help):
 		}
 
 		idx := index.New(root)
+		plugins.Run(plugin.HookBeforeIndex, &plugin.HookContext{FilePath: root})
 		if err := idx.Build(); err != nil {
 			return fmt.Errorf("building index: %w", err)
 		}
+		plugins.Run(plugin.HookAfterIndex, &plugin.HookContext{FilePath: root})
 
 		// Build fulltext search index
 		cacheDir, _ := os.UserCacheDir()
@@ -151,7 +156,7 @@ TUI keybindings (press ? for full help):
 			}
 		}
 
-		model := tui.New(cfg, idx, links)
+		model := tui.New(cfg, idx, links, plugins)
 		if initialFile != "" {
 			model.SelectFile(initialFile)
 		}
@@ -192,9 +197,11 @@ ETag caching, and skips auto-opening the browser when an SSH session is detected
 		}
 
 		idx := index.New(root)
+		plugins.Run(plugin.HookBeforeIndex, &plugin.HookContext{FilePath: root})
 		if err := idx.Build(); err != nil {
 			return fmt.Errorf("building index: %w", err)
 		}
+		plugins.Run(plugin.HookAfterIndex, &plugin.HookContext{FilePath: root})
 
 		// Build fulltext search index
 		serveCacheDir, _ := os.UserCacheDir()
@@ -209,7 +216,7 @@ ETag caching, and skips auto-opening the browser when an SSH session is detected
 		links := index.NewLinkGraph()
 		links.BuildFromIndex(idx)
 
-		srv := web.New(cfg, idx, links)
+		srv := web.New(cfg, idx, links, plugins)
 
 		watcher, err := index.NewWatcher(idx, links, srv.OnFileChange)
 		if err != nil {
@@ -486,6 +493,61 @@ large file warnings, and wkhtmltopdf availability (for PDF export).`,
 	},
 }
 
+var tasksCmd = &cobra.Command{
+	Use:   "tasks [path]",
+	Short: "Extract and list TODO items from markdown files",
+	Long: `Extract TODO/FIXME checkbox items from markdown files and display them
+in a formatted table. Recognizes priority markers (!high, !medium, !low),
+tags (#tag), and due dates (@due(YYYY-MM-DD)).
+
+Tasks are extracted from markdown checkbox syntax:
+  - [ ] Unchecked task
+  - [x] Completed task
+  - [ ] !high Urgent task with priority
+  - [ ] Fix bug #backend @due(2025-01-15)`,
+	Example: `  lookit tasks
+  lookit tasks ~/docs
+  lookit tasks --pending
+  lookit tasks --json | jq '.[] | select(.priority == "high")'`,
+	Args: cobra.MaximumNArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		root, _, err := resolveRoot(args)
+		if err != nil {
+			return err
+		}
+
+		idx := index.New(root)
+		if err := idx.Build(); err != nil {
+			return fmt.Errorf("building index: %w", err)
+		}
+
+		var allTasks []tasks.Task
+		for _, entry := range idx.Entries() {
+			if !entry.IsMarkdown {
+				continue
+			}
+			data, err := os.ReadFile(filepath.Join(root, entry.RelPath))
+			if err != nil {
+				continue
+			}
+			allTasks = append(allTasks, tasks.Extract(entry.RelPath, string(data))...)
+		}
+
+		pending, _ := cmd.Flags().GetBool("pending")
+		if pending {
+			allTasks = tasks.Pending(allTasks)
+		}
+
+		jsonOut, _ := cmd.Flags().GetBool("json")
+		if jsonOut {
+			return json.NewEncoder(os.Stdout).Encode(allTasks)
+		}
+
+		fmt.Print(tasks.FormatTable(allTasks))
+		return nil
+	},
+}
+
 var genManCmd = &cobra.Command{
 	Use:    "gen-man [output-dir]",
 	Short:  "Generate man pages",
@@ -726,6 +788,9 @@ func init() {
 
 	graphCmd.Flags().Bool("json", false, "output as JSON (nodes and edges)")
 
+	tasksCmd.Flags().Bool("json", false, "output as JSON array")
+	tasksCmd.Flags().Bool("pending", false, "show only unchecked tasks")
+
 	completionCmd.Flags().Bool("install", false, "auto-detect shell and install without prompts")
 
 	rootCmd.AddCommand(serveCmd)
@@ -733,6 +798,7 @@ func init() {
 	rootCmd.AddCommand(exportCmd)
 	rootCmd.AddCommand(graphCmd)
 	rootCmd.AddCommand(doctorCmd)
+	rootCmd.AddCommand(tasksCmd)
 	rootCmd.AddCommand(completionCmd)
 	rootCmd.AddCommand(genManCmd)
 }
@@ -776,7 +842,20 @@ func loadConfig(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	return cfg.Validate()
+	if err := cfg.Validate(); err != nil {
+		return err
+	}
+
+	// Load plugin hooks from config dir
+	configDir, err := config.ConfigDir()
+	if err == nil {
+		plugins, _ = plugin.LoadPlugins(configDir)
+	}
+	if plugins == nil {
+		plugins = plugin.NewRegistry()
+	}
+
+	return nil
 }
 
 // resolveRoot returns the root directory and an optional initial file path.
