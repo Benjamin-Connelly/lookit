@@ -41,9 +41,10 @@ type PreviewModel struct {
 	searchQuery   string
 	searchMatches []int // line indices that match
 	searchCurrent int   // index into searchMatches (current match)
-	searchHistory []string
-	searchHistIdx int  // -1 = editing new query, 0+ = browsing history
-	searchRegex   bool // true = regex mode, false = substring
+	searchHistory  []string
+	searchHistIdx  int  // -1 = editing new query, 0+ = browsing history
+	searchRegex    bool // true = regex mode, false = substring
+	searchRegexErr bool // true if current regex failed to compile
 }
 
 // NewPreviewModel creates a preview pane.
@@ -285,6 +286,7 @@ func (m *PreviewModel) ToggleSearchRegex() {
 func (m *PreviewModel) computeMatches() {
 	m.searchMatches = nil
 	m.searchCurrent = 0
+	m.searchRegexErr = false
 	if m.searchQuery == "" {
 		return
 	}
@@ -294,7 +296,8 @@ func (m *PreviewModel) computeMatches() {
 		var err error
 		re, err = regexp.Compile("(?i)" + m.searchQuery)
 		if err != nil {
-			return // Invalid regex, no matches
+			m.searchRegexErr = true
+			return
 		}
 	}
 

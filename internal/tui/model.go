@@ -1743,6 +1743,10 @@ func (m *Model) View() string {
 	m.status.searchMode = m.preview.searchMode
 	m.status.searchQuery = m.preview.searchQuery
 	m.status.searchMatchCount = len(m.preview.searchMatches)
+	m.status.searchRegexErr = m.preview.searchRegexErr
+	// Filter state for status bar
+	m.status.filterActive = !m.fileList.filtering && m.fileList.filter != ""
+	m.status.filterQuery = m.fileList.filter
 	return lipgloss.JoinVertical(lipgloss.Left, main, m.status.View())
 }
 

@@ -21,6 +21,9 @@ type StatusBarModel struct {
 	searchMode       bool
 	searchQuery      string
 	searchMatchCount int
+	searchRegexErr   bool // true if regex failed to compile
+	filterActive     bool // true if file list has frozen filter
+	filterQuery      string
 	wordCount        int
 	readingTime      int // minutes
 	width            int
@@ -56,6 +59,9 @@ func (m *StatusBarModel) SetMode(mode string) {
 // contextHints returns panel-specific keybinding hints.
 func (m StatusBarModel) contextHints() string {
 	if m.searchMode {
+		if m.searchRegexErr {
+			return fmt.Sprintf("/ %s  invalid regex  ctrl-r:substring  esc:close", m.searchQuery)
+		}
 		hint := fmt.Sprintf("/ %s (%d matches)", m.searchQuery, m.searchMatchCount)
 		return hint + "  enter/esc:close  ctrl-r:regex  up/down:history"
 	}
@@ -78,11 +84,14 @@ func (m StatusBarModel) contextHints() string {
 	}
 	switch m.focus {
 	case PanelPreview:
-		return "j/k:move  /:search  n/N:match  H:guide  V:select  tab:link  esc:back"
+		return "j/k:move  /:search  n/N:match  H:guide  V:sel  t:toc  b:links  ?:help"
 	case PanelSide:
 		return "j/k:scroll  enter:select  d:delete  esc:back"
 	default: // PanelFileList
-		return "j/k:nav  enter:open  /:filter  e:edit  ?:help  q:quit"
+		if m.filterActive {
+			return fmt.Sprintf("[%s]  j/k:nav  enter:open  esc:clear  ?:help", m.filterQuery)
+		}
+		return "j/k:nav  enter:open  /:filter  t:toc  b:links  i:git  ?:help  q:quit"
 	}
 }
 
