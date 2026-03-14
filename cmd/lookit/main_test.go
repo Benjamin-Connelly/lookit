@@ -3,9 +3,11 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/Benjamin-Connelly/lookit/internal/config"
+	"github.com/spf13/cobra/doc"
 )
 
 func init() {
@@ -65,5 +67,64 @@ func TestResolveRoot_DefaultConfig(t *testing.T) {
 	}
 	if initialFile != "" {
 		t.Errorf("initialFile = %q, want empty", initialFile)
+	}
+}
+
+// stripManHeader removes the .TH line (contains version/date that change per
+// build) so we can compare content only.
+func stripManHeader(content string) string {
+	lines := strings.Split(content, "\n")
+	var out []string
+	for _, line := range lines {
+		if strings.HasPrefix(line, ".TH ") {
+			continue
+		}
+		out = append(out, line)
+	}
+	return strings.Join(out, "\n")
+}
+
+func TestManPagesUpToDate(t *testing.T) {
+	embedDir := filepath.Join("..", "..", "internal", "manpages", "pages")
+	if _, err := os.Stat(embedDir); err != nil {
+		t.Skip("embed directory not found (running outside repo root)")
+	}
+
+	// Generate fresh man pages to a temp dir
+	tmpDir := t.TempDir()
+	header := &doc.GenManHeader{
+		Title:   "LOOKIT",
+		Section: "1",
+	}
+	if err := doc.GenManTree(rootCmd, header, tmpDir); err != nil {
+		t.Fatalf("gen-man failed: %v", err)
+	}
+
+	// Compare each generated page against the committed embedded page
+	entries, err := os.ReadDir(tmpDir)
+	if err != nil {
+		t.Fatalf("reading temp dir: %v", err)
+	}
+
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".1") {
+			continue
+		}
+
+		generated, err := os.ReadFile(filepath.Join(tmpDir, entry.Name()))
+		if err != nil {
+			t.Errorf("reading generated %s: %v", entry.Name(), err)
+			continue
+		}
+
+		committed, err := os.ReadFile(filepath.Join(embedDir, entry.Name()))
+		if err != nil {
+			t.Errorf("man page %s not found in embed dir — run: go run ./cmd/lookit gen-man", entry.Name())
+			continue
+		}
+
+		if stripManHeader(string(generated)) != stripManHeader(string(committed)) {
+			t.Errorf("man page %s is stale — run: go run ./cmd/lookit gen-man", entry.Name())
+		}
 	}
 }
