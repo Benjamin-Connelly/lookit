@@ -2,7 +2,6 @@ package index
 
 import (
 	"log"
-	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -131,7 +130,7 @@ func (w *Watcher) doBuild() {
 				continue
 			}
 			absPath := filepath.Join(w.index.Root(), p)
-			if _, err := os.Stat(absPath); err != nil {
+			if _, err := w.index.Fs().Stat(absPath); err != nil {
 				// File was deleted
 				if delErr := w.index.Fulltext.Remove(p); delErr != nil {
 					log.Printf("watcher: fulltext remove %s: %v", p, delErr)
@@ -153,7 +152,7 @@ func (w *Watcher) doBuild() {
 
 // maybeWatchDir adds a new directory to the watcher if it exists and is not hidden.
 func (w *Watcher) maybeWatchDir(path string) {
-	info, err := os.Stat(path)
+	info, err := w.index.Fs().Stat(path)
 	if err != nil || !info.IsDir() {
 		return
 	}

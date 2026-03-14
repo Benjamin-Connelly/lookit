@@ -18,6 +18,7 @@ import (
 	"github.com/Benjamin-Connelly/lookit/internal/index"
 	"github.com/Benjamin-Connelly/lookit/internal/render"
 	"github.com/Benjamin-Connelly/lookit/internal/web/static"
+	"github.com/spf13/afero"
 )
 
 // Server is the HTTP server for web mode.
@@ -26,6 +27,7 @@ type Server struct {
 	idx    *index.Index
 	links  *index.LinkGraph
 	code   *render.CodeRenderer
+	fs     afero.Fs
 	mux    *http.ServeMux
 	server *http.Server
 	sse    *SSEBroker
@@ -101,6 +103,7 @@ func New(cfg *config.Config, idx *index.Index, links *index.LinkGraph) *Server {
 		idx:   idx,
 		links: links,
 		code:  render.NewCodeRenderer(cfg.Theme, false),
+		fs:    idx.Fs(),
 		mux:   http.NewServeMux(),
 		sse:   NewSSEBroker(),
 	}
@@ -188,7 +191,7 @@ func (s *Server) handleCustomCSS(w http.ResponseWriter, r *http.Request) {
 	}
 	_ = resolved
 
-	data, err := os.ReadFile(cssPath)
+	data, err := afero.ReadFile(s.fs, cssPath)
 	if err != nil {
 		http.NotFound(w, r)
 		return

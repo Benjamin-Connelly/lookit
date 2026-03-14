@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/spf13/afero"
 )
 
 // ImageProtocol identifies the terminal image protocol to use.
@@ -36,8 +38,13 @@ func DetectImageProtocol() ImageProtocol {
 
 // RenderImageInline outputs an image using the given terminal protocol.
 // Only safe outside alt-screen (e.g., `lookit cat`), NOT inside Bubble Tea.
-func RenderImageInline(path string, protocol ImageProtocol) (string, error) {
-	data, err := os.ReadFile(path)
+// An optional afero.Fs can be provided; if nil, the OS filesystem is used.
+func RenderImageInline(path string, protocol ImageProtocol, fsys ...afero.Fs) (string, error) {
+	var fs afero.Fs = afero.NewOsFs()
+	if len(fsys) > 0 && fsys[0] != nil {
+		fs = fsys[0]
+	}
+	data, err := afero.ReadFile(fs, path)
 	if err != nil {
 		return "", fmt.Errorf("reading image: %w", err)
 	}

@@ -3,7 +3,6 @@ package render
 import (
 	"bytes"
 	"io"
-	"os"
 	"path/filepath"
 
 	"github.com/alecthomas/chroma/v2"
@@ -11,12 +10,14 @@ import (
 	htmlfmt "github.com/alecthomas/chroma/v2/formatters/html"
 	"github.com/alecthomas/chroma/v2/lexers"
 	"github.com/alecthomas/chroma/v2/styles"
+	"github.com/spf13/afero"
 )
 
 // CodeRenderer provides syntax highlighting via Chroma.
 type CodeRenderer struct {
 	theme    string
 	terminal bool // true for TUI output, false for HTML
+	fs       afero.Fs
 }
 
 // NewCodeRenderer creates a code renderer.
@@ -25,7 +26,13 @@ func NewCodeRenderer(theme string, terminal bool) *CodeRenderer {
 	return &CodeRenderer{
 		theme:    theme,
 		terminal: terminal,
+		fs:       afero.NewOsFs(),
 	}
+}
+
+// SetFs sets the filesystem for file operations.
+func (r *CodeRenderer) SetFs(fs afero.Fs) {
+	r.fs = fs
 }
 
 // SetTheme changes the highlighting theme at runtime.
@@ -54,7 +61,7 @@ func (r *CodeRenderer) Highlight(filename, source string) (string, error) {
 
 // HighlightFile reads a file and returns syntax-highlighted content.
 func (r *CodeRenderer) HighlightFile(filePath string) (string, error) {
-	data, err := os.ReadFile(filePath)
+	data, err := afero.ReadFile(r.fs, filePath)
 	if err != nil {
 		return "", err
 	}

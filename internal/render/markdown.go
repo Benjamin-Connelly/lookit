@@ -2,13 +2,13 @@ package render
 
 import (
 	"bytes"
-	"os"
 	"regexp"
 	"strconv"
 	"strings"
 
 	"github.com/charmbracelet/glamour"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/spf13/afero"
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/text"
@@ -33,6 +33,7 @@ type MarkdownRenderer struct {
 	renderer *glamour.TermRenderer
 	theme    string
 	width    int
+	fs       afero.Fs
 }
 
 // NewMarkdownRenderer creates a markdown renderer with the given theme and width.
@@ -51,7 +52,13 @@ func NewMarkdownRenderer(theme string, width int) (*MarkdownRenderer, error) {
 		renderer: r,
 		theme:    theme,
 		width:    width,
+		fs:       afero.NewOsFs(),
 	}, nil
+}
+
+// SetFs sets the filesystem for file operations.
+func (r *MarkdownRenderer) SetFs(fs afero.Fs) {
+	r.fs = fs
 }
 
 // resolveTheme maps theme names to Glamour style names, with auto-detection.
@@ -105,7 +112,7 @@ func (r *MarkdownRenderer) Render(source string) (string, error) {
 // RenderFile reads a file and renders its markdown content.
 // On render error, returns the raw file content as fallback.
 func (r *MarkdownRenderer) RenderFile(filePath string) (string, error) {
-	data, err := os.ReadFile(filePath)
+	data, err := afero.ReadFile(r.fs, filePath)
 	if err != nil {
 		return "", err
 	}

@@ -7,6 +7,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/spf13/afero"
 )
 
 // FileEntry represents an indexed file.
@@ -34,6 +36,7 @@ type Options struct {
 // Index maintains an in-memory file index for fast lookup and search.
 type Index struct {
 	root     string
+	fs       afero.Fs
 	entries  []FileEntry
 	byPath   map[string]*FileEntry
 	opts     Options
@@ -68,6 +71,7 @@ func (idx *Index) CloseFulltext() {
 func New(root string) *Index {
 	return &Index{
 		root:   root,
+		fs:     afero.NewOsFs(),
 		byPath: make(map[string]*FileEntry),
 	}
 }
@@ -76,9 +80,24 @@ func New(root string) *Index {
 func NewWithOptions(root string, opts Options) *Index {
 	return &Index{
 		root:   root,
+		fs:     afero.NewOsFs(),
 		byPath: make(map[string]*FileEntry),
 		opts:   opts,
 	}
+}
+
+// NewWithFs creates a new Index with a custom filesystem.
+func NewWithFs(root string, fs afero.Fs) *Index {
+	return &Index{
+		root:   root,
+		fs:     fs,
+		byPath: make(map[string]*FileEntry),
+	}
+}
+
+// Fs returns the filesystem used by this index.
+func (idx *Index) Fs() afero.Fs {
+	return idx.fs
 }
 
 // hiddenDirs are always skipped during indexing.
@@ -95,17 +114,17 @@ func (idx *Index) Build() error {
 	idx.byPath = make(map[string]*FileEntry)
 	idx.stats = Stats{}
 
-	gitignore := loadGitignore(idx.root)
+	gitignore := loadGitignore(idx.fs, idx.root)
 
-	err := filepath.WalkDir(idx.root, func(path string, d os.DirEntry, err error) error {
+	err := afero.Walk(idx.fs, idx.root, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return nil
 		}
 
-		name := d.Name()
+		name := info.Name()
 
 		// Skip hidden directories (.git, .hg, etc.)
-		if d.IsDir() && path != idx.root {
+		if info.IsDir() && path != idx.root {
 			if hiddenDirs[name] || strings.HasPrefix(name, ".") {
 				return filepath.SkipDir
 			}
@@ -122,8 +141,8 @@ func (idx *Index) Build() error {
 		}
 
 		// Check .gitignore patterns
-		if gitignore.match(rel, d.IsDir()) {
-			if d.IsDir() {
+		if gitignore.match(rel, info.IsDir()) {
+			if info.IsDir() {
 				return filepath.SkipDir
 			}
 			return nil
@@ -131,14 +150,9 @@ func (idx *Index) Build() error {
 
 		// Check custom ignore patterns
 		if idx.matchesIgnorePatterns(rel) {
-			if d.IsDir() {
+			if info.IsDir() {
 				return filepath.SkipDir
 			}
-			return nil
-		}
-
-		info, err := d.Info()
-		if err != nil {
 			return nil
 		}
 
@@ -147,13 +161,13 @@ func (idx *Index) Build() error {
 			RelPath:    rel,
 			Size:       info.Size(),
 			ModTime:    info.ModTime(),
-			IsDir:      d.IsDir(),
+			IsDir:      info.IsDir(),
 			IsMarkdown: isMarkdown(name),
 		}
 
 		idx.entries = append(idx.entries, entry)
 
-		if d.IsDir() {
+		if info.IsDir() {
 			idx.stats.DirCount++
 		} else {
 			idx.stats.FileCount++
@@ -180,6 +194,7 @@ func (idx *Index) Build() error {
 // It replaces the index atomically.
 func (idx *Index) Rebuild() error {
 	newIdx := NewWithOptions(idx.root, idx.opts)
+	newIdx.fs = idx.fs
 	if err := newIdx.Build(); err != nil {
 		return err
 	}
@@ -262,9 +277,9 @@ type gitignorePattern struct {
 	hasSlash bool // pattern contains a slash (anchored to root)
 }
 
-func loadGitignore(root string) gitignoreRules {
+func loadGitignore(fs afero.Fs, root string) gitignoreRules {
 	path := filepath.Join(root, ".gitignore")
-	f, err := os.Open(path)
+	f, err := fs.Open(path)
 	if err != nil {
 		return gitignoreRules{}
 	}

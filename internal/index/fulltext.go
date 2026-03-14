@@ -7,6 +7,7 @@ import (
 
 	bleve "github.com/blevesearch/bleve/v2"
 	"github.com/blevesearch/bleve/v2/mapping"
+	"github.com/spf13/afero"
 )
 
 // SearchResult holds a single fulltext search hit.
@@ -21,6 +22,7 @@ type SearchResult struct {
 type FulltextIndex struct {
 	idx  bleve.Index
 	path string // on-disk path (empty = memory-only)
+	fs   afero.Fs
 	mu   sync.RWMutex
 }
 
@@ -53,7 +55,7 @@ func buildMapping() mapping.IndexMapping {
 func NewFulltextIndex(cacheDir string) (*FulltextIndex, error) {
 	m := buildMapping()
 
-	ft := &FulltextIndex{}
+	ft := &FulltextIndex{fs: afero.NewOsFs()}
 
 	if cacheDir == "" {
 		idx, err := bleve.NewMemOnly(m)
@@ -100,7 +102,7 @@ func (ft *FulltextIndex) BuildFrom(idx *Index) error {
 
 	batch := ft.idx.NewBatch()
 	for _, e := range entries {
-		data, err := os.ReadFile(filepath.Join(root, e.RelPath))
+		data, err := afero.ReadFile(idx.Fs(), filepath.Join(root, e.RelPath))
 		if err != nil {
 			continue
 		}
@@ -121,7 +123,7 @@ func (ft *FulltextIndex) Update(absPath, relPath string) error {
 	ft.mu.Lock()
 	defer ft.mu.Unlock()
 
-	data, err := os.ReadFile(absPath)
+	data, err := afero.ReadFile(ft.fs, absPath)
 	if err != nil {
 		return err
 	}

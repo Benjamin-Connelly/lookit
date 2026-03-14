@@ -1,13 +1,13 @@
 package index
 
 import (
-	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
 	"sync"
 
 	"github.com/Benjamin-Connelly/lookit/internal/render"
+	"github.com/spf13/afero"
 )
 
 // Link represents a link from one file to another.
@@ -198,7 +198,7 @@ func ExtractLinks(filePath, content string, idx *Index) []Link {
 func (g *LinkGraph) BuildFromIndex(idx *Index) {
 	mdFiles := idx.MarkdownFiles()
 	for _, entry := range mdFiles {
-		content, err := os.ReadFile(entry.Path)
+		content, err := afero.ReadFile(idx.Fs(), entry.Path)
 		if err != nil {
 			continue
 		}
@@ -230,7 +230,7 @@ func (g *LinkGraph) ValidateFragments(idx *Index) {
 
 			slugs, ok := slugCache[link.Target]
 			if !ok {
-				data, err := os.ReadFile(entry.Path)
+				data, err := afero.ReadFile(idx.Fs(), entry.Path)
 				if err != nil {
 					continue
 				}

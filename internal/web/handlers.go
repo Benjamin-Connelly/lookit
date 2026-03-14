@@ -19,6 +19,7 @@ import (
 	"github.com/Benjamin-Connelly/lookit/internal/index"
 	"github.com/Benjamin-Connelly/lookit/internal/render"
 	"github.com/Benjamin-Connelly/lookit/internal/web/templates"
+	"github.com/spf13/afero"
 	"github.com/yuin/goldmark"
 	highlighting "github.com/yuin/goldmark-emoji"
 	"github.com/yuin/goldmark/extension"
@@ -261,7 +262,7 @@ func slugify(text string) string {
 
 func (s *Server) handleMarkdown(w http.ResponseWriter, r *http.Request, relPath string) {
 	absPath := filepath.Join(s.idx.Root(), relPath)
-	source, err := os.ReadFile(absPath)
+	source, err := afero.ReadFile(s.fs, absPath)
 	if err != nil {
 		http.Error(w, "Failed to read file", http.StatusInternalServerError)
 		return
@@ -339,7 +340,7 @@ type codePageData struct {
 
 func (s *Server) handleFile(w http.ResponseWriter, r *http.Request, relPath string) {
 	absPath := filepath.Join(s.idx.Root(), relPath)
-	source, err := os.ReadFile(absPath)
+	source, err := afero.ReadFile(s.fs, absPath)
 	if err != nil {
 		http.Error(w, "Failed to read file", http.StatusInternalServerError)
 		return
