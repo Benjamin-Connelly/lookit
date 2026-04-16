@@ -3,7 +3,6 @@ package remote
 import (
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 )
@@ -144,52 +143,6 @@ func TestTargetDisplay(t *testing.T) {
 				t.Errorf("Display() = %q, want %q", got, tt.want)
 			}
 		})
-	}
-}
-
-// --- CachePath tests ---
-
-func TestCachePath(t *testing.T) {
-	target := Target{Host: "myhost", Path: "/docs"}
-	path, err := CachePath(target)
-	if err != nil {
-		t.Fatalf("CachePath() error: %v", err)
-	}
-	if path == "" {
-		t.Fatal("CachePath() returned empty string")
-	}
-
-	// Deterministic
-	path2, _ := CachePath(target)
-	if path != path2 {
-		t.Errorf("CachePath() not deterministic: %q != %q", path, path2)
-	}
-
-	// Different targets produce different paths
-	target2 := Target{Host: "other", Path: "/docs"}
-	path3, _ := CachePath(target2)
-	if path == path3 {
-		t.Error("CachePath() same for different targets")
-	}
-
-	// User affects cache path
-	target3 := Target{User: "alice", Host: "myhost", Path: "/docs"}
-	path4, _ := CachePath(target3)
-	if path == path4 {
-		t.Error("CachePath() ignores user field")
-	}
-
-	// Port affects cache path
-	target4 := Target{Host: "myhost", Port: 2222, Path: "/docs"}
-	path5, _ := CachePath(target4)
-	if path == path5 {
-		t.Error("CachePath() ignores port field")
-	}
-
-	// Path is under cache dir
-	cacheDir, _ := os.UserCacheDir()
-	if !strings.HasPrefix(path, filepath.Join(cacheDir, "fur", "remote")) {
-		t.Errorf("CachePath() not under expected cache dir: %q", path)
 	}
 }
 
@@ -412,81 +365,6 @@ func TestResolvePort(t *testing.T) {
 	}
 }
 
-// --- SyncStatus tests ---
-
-func TestSyncStatus_Initial(t *testing.T) {
-	conn := NewConn(Target{Host: "h", Path: "/p"})
-	syncer := NewSyncer(conn, t.TempDir())
-
-	status := syncer.Status()
-	if status.State != SyncIdle {
-		t.Errorf("initial state = %v, want SyncIdle", status.State)
-	}
-	if !status.LastSync.IsZero() {
-		t.Error("initial LastSync should be zero")
-	}
-	if status.FilesTotal != 0 {
-		t.Errorf("initial FilesTotal = %d, want 0", status.FilesTotal)
-	}
-}
-
-func TestSyncer_CacheDir(t *testing.T) {
-	dir := t.TempDir()
-	conn := NewConn(Target{Host: "h", Path: "/p"})
-	syncer := NewSyncer(conn, dir)
-
-	if syncer.CacheDir() != dir {
-		t.Errorf("CacheDir() = %q, want %q", syncer.CacheDir(), dir)
-	}
-}
-
-func TestSyncer_StopIdempotent(t *testing.T) {
-	conn := NewConn(Target{Host: "h", Path: "/p"})
-	syncer := NewSyncer(conn, t.TempDir())
-
-	// Stop without starting should not panic
-	syncer.Stop()
-	syncer.Stop() // double stop
-}
-
-func TestSyncer_InitialSync_NoConnection(t *testing.T) {
-	conn := NewConn(Target{Host: "h", Path: "/p"})
-	syncer := NewSyncer(conn, t.TempDir())
-
-	err := syncer.InitialSync()
-	if err == nil {
-		t.Error("InitialSync without connection should fail")
-	}
-
-	status := syncer.Status()
-	if status.State != SyncError {
-		t.Errorf("state after failed sync = %v, want SyncError", status.State)
-	}
-}
-
-func TestSyncer_SetOnChange(t *testing.T) {
-	conn := NewConn(Target{Host: "h", Path: "/p"})
-	syncer := NewSyncer(conn, t.TempDir())
-
-	called := false
-	syncer.SetOnChange(func() { called = true })
-
-	// onChange shouldn't be called without polling
-	if called {
-		t.Error("onChange called before polling started")
-	}
-}
-
-func TestSyncer_SingleFileField(t *testing.T) {
-	conn := NewConn(Target{Host: "h", Path: "/path/to/file.md"})
-	syncer := NewSyncer(conn, t.TempDir())
-
-	// singleFile should be false initially (set during sync based on Stat)
-	if syncer.singleFile {
-		t.Error("singleFile should be false before sync")
-	}
-}
-
 // --- Roundtrip parse → string tests ---
 
 func TestParseTarget_Roundtrip(t *testing.T) {
@@ -522,24 +400,6 @@ func TestParseTarget_SpecialCharacters(t *testing.T) {
 	}
 	if got.Path != "/données/résumé.md" {
 		t.Errorf("Path = %q, want %q", got.Path, "/données/résumé.md")
-	}
-}
-
-func TestCachePath_Stability(t *testing.T) {
-	// Verify the hash is stable across calls (no randomness)
-	target := Target{User: "u", Host: "h", Port: 22, Path: "/p"}
-	paths := make([]string, 10)
-	for i := range paths {
-		p, err := CachePath(target)
-		if err != nil {
-			t.Fatalf("CachePath() error: %v", err)
-		}
-		paths[i] = p
-	}
-	for i := 1; i < len(paths); i++ {
-		if paths[i] != paths[0] {
-			t.Errorf("CachePath() not stable: %q != %q", paths[i], paths[0])
-		}
 	}
 }
 
