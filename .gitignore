@@ -24,3 +24,6 @@ artifacts/
 # Claude Code local files
 .claude/settings.local.json
 .claude/worktrees/
+.claude-flow/
+.mcp.json
+coverage.out
