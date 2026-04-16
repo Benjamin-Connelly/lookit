@@ -22,6 +22,20 @@ const (
 	PanelSide
 )
 
+type inputMode int
+
+const (
+	modeNormal inputMode = iota
+	modeCommand
+	modeHeadingJump
+	modeLinkSelect
+	modePendingMark
+	modePendingJump
+	modeVisual
+	modeSearch
+	modeFilter
+)
+
 // Message types for inter-component communication.
 type FileSelectedMsg struct {
 	Entry index.FileEntry
@@ -61,6 +75,7 @@ type Model struct {
 	sidePanel  SidePanelModel
 	cmdPalette CommandPalette
 
+	mode     inputMode
 	focus    Panel
 	width    int
 	height   int
@@ -82,7 +97,6 @@ type Model struct {
 	pendingFragment string
 
 	// Global heading jump state
-	headingJump      bool
 	headingJumpInput string
 	headingJumpItems []headingJumpEntry
 	headingJumpCur   int
@@ -94,9 +108,7 @@ type Model struct {
 	searchMode string
 
 	// Vim-style marks: m{a-z} sets, '{a-z} jumps
-	marks       map[rune]mark
-	pendingMark bool // waiting for mark register key
-	pendingJump bool // waiting for jump register key
+	marks map[rune]mark
 
 	// Remote connection state (nil = local mode)
 	remoteInfo *RemoteInfo
@@ -429,7 +441,7 @@ func (m *Model) View() string {
 		return lipgloss.JoinVertical(lipgloss.Left, main, cmdView)
 	}
 
-	if m.headingJump {
+	if m.mode == modeHeadingJump {
 		return lipgloss.JoinVertical(lipgloss.Left, main, m.headingJumpView())
 	}
 

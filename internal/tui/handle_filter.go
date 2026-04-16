@@ -21,13 +21,14 @@ func (m *Model) handleFilterKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.applyFilter(m.fileList.filter)
 		return m, nil
 	case "esc":
+		m.mode = modeNormal
 		m.fileList.ClearFilter()
 		m.searchMode = "filename"
 		m.fileList.searchMode = "filename"
 		m.status.SetMode("NORMAL")
 		return m, nil
 	case "enter":
-		// Freeze results — stop filtering but keep the filtered list
+		m.mode = modeNormal
 		m.fileList.filtering = false
 		m.focus = PanelFileList
 		m.status.SetMode("FILES")

@@ -110,17 +110,19 @@ func (m *Model) handleNormalKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "/", "ctrl+k":
 		// When preview is focused, / opens preview search instead of file filter
 		if msg.String() == "/" && m.focus == PanelPreview {
+			m.mode = modeSearch
 			m.preview.EnterSearchMode()
 			m.status.SetMode("SEARCH")
 			return m, nil
 		}
+		m.mode = modeFilter
 		m.focus = PanelFileList
 		m.fileList.StartFilter()
 		m.status.SetMode("FILTER")
 		return m, nil
 
 	case "ctrl+g":
-		m.headingJump = true
+		m.mode = modeHeadingJump
 		m.headingJumpInput = ""
 		m.headingJumpItems = m.collectAllHeadings()
 		m.headingJumpCur = 0
@@ -149,6 +151,7 @@ func (m *Model) handleNormalKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case ":":
+		m.mode = modeCommand
 		m.cmdPalette.Open()
 		m.status.SetMode("COMMAND")
 		return m, nil
@@ -199,8 +202,7 @@ func (m *Model) handleNormalKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	case "m":
 		if m.focus == PanelPreview && m.preview.filePath != "" {
-			// Vim-style mark: wait for register key
-			m.pendingMark = true
+			m.mode = modePendingMark
 			m.status.SetMode("MARK")
 			return m, nil
 		}
@@ -220,7 +222,7 @@ func (m *Model) handleNormalKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	case "'":
 		if m.focus == PanelPreview {
-			m.pendingJump = true
+			m.mode = modePendingJump
 			m.status.SetMode("JUMP")
 			return m, nil
 		}

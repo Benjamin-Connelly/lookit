@@ -388,11 +388,11 @@ func TestModel_MarkSetAndJump(t *testing.T) {
 
 	// Set mark 'a'
 	m, _ = sendKey(m, "m")
-	if !m.pendingMark {
+	if m.mode != modePendingMark {
 		t.Fatal("m should set pendingMark")
 	}
 	m, _ = sendKey(m, "a")
-	if m.pendingMark {
+	if m.mode == modePendingMark {
 		t.Error("pendingMark should be cleared")
 	}
 	mk, ok := m.marks['a']
@@ -408,11 +408,11 @@ func TestModel_MarkSetAndJump(t *testing.T) {
 
 	// Jump to mark 'a'
 	m, _ = sendKey(m, "'")
-	if !m.pendingJump {
+	if m.mode != modePendingJump {
 		t.Fatal("' should set pendingJump")
 	}
 	m, _ = sendKey(m, "a")
-	if m.pendingJump {
+	if m.mode == modePendingJump {
 		t.Error("pendingJump should be cleared")
 	}
 	if m.preview.cursorLine != 3 {
@@ -429,7 +429,7 @@ func TestModel_MarkInvalidRegister(t *testing.T) {
 	m, _ = sendKey(m, "m")
 	// Send non a-z key
 	m, _ = sendKey(m, "1")
-	if m.pendingMark {
+	if m.mode == modePendingMark {
 		t.Error("pendingMark should be cleared on invalid register")
 	}
 	if len(m.marks) != 0 {
@@ -449,7 +449,7 @@ func TestModel_JumpToUnsetMark(t *testing.T) {
 	if cmd == nil {
 		// The status message is set directly, not via cmd
 	}
-	if m.pendingJump {
+	if m.mode == modePendingJump {
 		t.Error("pendingJump should be cleared")
 	}
 }
@@ -457,13 +457,13 @@ func TestModel_JumpToUnsetMark(t *testing.T) {
 func TestModel_HeadingJump(t *testing.T) {
 	m := testModel(t)
 	m, _ = sendMsg(m, tea.KeyMsg{Type: tea.KeyCtrlG})
-	if !m.headingJump {
+	if m.mode != modeHeadingJump {
 		t.Error("ctrl+g should enter heading jump mode")
 	}
 
 	// Esc exits heading jump
 	m, _ = sendSpecialKey(m, tea.KeyEsc)
-	if m.headingJump {
+	if m.mode == modeHeadingJump {
 		t.Error("Esc should exit heading jump")
 	}
 }
@@ -504,6 +504,7 @@ func TestModel_ModeString(t *testing.T) {
 
 func TestModel_FilterKey_Esc(t *testing.T) {
 	m := testModel(t)
+	m.mode = modeFilter
 	m.fileList.StartFilter()
 	m.fileList.filter = "test"
 
@@ -515,6 +516,7 @@ func TestModel_FilterKey_Esc(t *testing.T) {
 
 func TestModel_FilterKey_Enter(t *testing.T) {
 	m := testModel(t)
+	m.mode = modeFilter
 	m.fileList.StartFilter()
 
 	// Enter should freeze filter (exit filtering mode but keep filter)

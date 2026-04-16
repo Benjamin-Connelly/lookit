@@ -24,6 +24,7 @@ func (m *Model) handlePreviewKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.preview.PrevMatch()
 		return m, nil
 	case "/":
+		m.mode = modeSearch
 		m.preview.EnterSearchMode()
 		m.status.SetMode("SEARCH")
 		return m, nil
@@ -81,6 +82,7 @@ func (m *Model) handlePreviewKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 	case "V":
+		m.mode = modeVisual
 		m.preview.EnterVisualMode()
 		m.status.SetMode("VISUAL")
 		return m, nil
@@ -93,6 +95,7 @@ func (m *Model) handlePreviewKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 func (m *Model) handlePreviewSearchKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "esc", "enter":
+		m.mode = modeNormal
 		m.preview.ExitSearchMode()
 		m.status.SetMode(m.modeString())
 		return m, nil
@@ -137,6 +140,7 @@ func (m *Model) handleVisualKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "y":
 		// Copy permalink with selected line range
 		startLine, endLine := m.preview.SelectedSourceLines()
+		m.mode = modeNormal
 		m.preview.ExitVisualMode()
 		m.status.SetMode(m.modeString())
 		return m, func() tea.Msg {
@@ -159,6 +163,7 @@ func (m *Model) handleVisualKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return StatusMsg{Text: fmt.Sprintf("Copied L%d-%d: %s", startLine, endLine, link)}
 		}
 	case "esc", "V":
+		m.mode = modeNormal
 		m.preview.ExitVisualMode()
 		m.status.SetMode(m.modeString())
 		return m, nil

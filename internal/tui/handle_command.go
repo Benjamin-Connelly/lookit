@@ -14,12 +14,14 @@ func (m *Model) handleCommandKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	k := msg.String()
 	switch k {
 	case "esc":
+		m.mode = modeNormal
 		m.cmdPalette.Close()
 		m.status.SetMode(m.modeString())
 		return m, nil
 	case "enter":
 		// :N — jump to line number (like vim)
 		if lineNum, err := strconv.Atoi(strings.TrimSpace(m.cmdPalette.input)); err == nil && lineNum > 0 {
+			m.mode = modeNormal
 			m.cmdPalette.Close()
 			m.status.SetMode(m.modeString())
 			target := lineNum - 1 // 0-based scroll
@@ -32,6 +34,7 @@ func (m *Model) handleCommandKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		if strings.HasPrefix(m.cmdPalette.input, "open ") {
+			m.mode = modeNormal
 			result := m.cmdPalette.HandleOpenInput(m.idx)
 			m.status.SetMode(m.modeString())
 			if result == nil {
@@ -39,6 +42,7 @@ func (m *Model) handleCommandKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			}
 			return m, func() tea.Msg { return result }
 		}
+		m.mode = modeNormal
 		result := m.cmdPalette.Execute()
 		m.status.SetMode(m.modeString())
 		if result == nil {

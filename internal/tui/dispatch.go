@@ -12,21 +12,15 @@ import (
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		// Command palette intercepts all keys when active
-		if m.cmdPalette.IsActive() {
+		switch m.mode {
+		case modeCommand:
 			return m.handleCommandKey(msg)
-		}
-		// Heading jump intercepts all keys when active
-		if m.headingJump {
+		case modeHeadingJump:
 			return m.handleHeadingJumpKey(msg)
-		}
-		// Link selection overlay intercepts keys when showing
-		if m.navigator.IsShowingLinks() {
+		case modeLinkSelect:
 			return m.handleLinkSelectKey(msg)
-		}
-		// Mark register: waiting for a-z after pressing m
-		if m.pendingMark {
-			m.pendingMark = false
+		case modePendingMark:
+			m.mode = modeNormal
 			m.status.SetMode(m.modeString())
 			k := msg.String()
 			if len(k) == 1 && k[0] >= 'a' && k[0] <= 'z' {
@@ -39,10 +33,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, m.clearStatusAfter()
 			}
 			return m, nil
-		}
-		// Jump to mark: waiting for a-z after pressing '
-		if m.pendingJump {
-			m.pendingJump = false
+		case modePendingJump:
+			m.mode = modeNormal
 			m.status.SetMode(m.modeString())
 			k := msg.String()
 			if len(k) == 1 && k[0] >= 'a' && k[0] <= 'z' {
@@ -51,7 +43,6 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.status.SetMessage("Mark '" + k + "' not set")
 					return m, m.clearStatusAfter()
 				}
-				// Navigate to the marked file and position
 				if mk.File != m.preview.filePath {
 					entry := m.idx.Lookup(mk.File)
 					if entry != nil {
@@ -67,17 +58,15 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			}
 			return m, nil
-		}
-		if m.preview.visualMode {
+		case modeVisual:
 			return m.handleVisualKey(msg)
-		}
-		if m.preview.searchMode {
+		case modeSearch:
 			return m.handlePreviewSearchKey(msg)
-		}
-		if m.fileList.filtering {
+		case modeFilter:
 			return m.handleFilterKey(msg)
+		default:
+			return m.handleNormalKey(msg)
 		}
-		return m.handleNormalKey(msg)
 
 	case tea.MouseMsg:
 		if m.cfg.Mouse {

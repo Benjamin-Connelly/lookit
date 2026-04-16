@@ -7,6 +7,7 @@ import (
 func (m *Model) handleLinkSelectKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "esc":
+		m.mode = modeNormal
 		m.navigator.CloseLinks()
 		return m, nil
 	case "up", "k":
@@ -17,6 +18,7 @@ func (m *Model) handleLinkSelectKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case "enter":
 		target, fragment := m.navigator.LinkSelect()
+		m.mode = modeNormal
 		if target != "" {
 			return m, func() tea.Msg {
 				return LinkFollowMsg{Target: target, Fragment: fragment}
@@ -39,6 +41,9 @@ func (m *Model) handleFollowLink() (tea.Model, tea.Cmd) {
 		}
 	}
 	// Either no links (status message) or multiple (overlay shown)
+	if m.navigator.IsShowingLinks() {
+		m.mode = modeLinkSelect
+	}
 	if !m.navigator.IsShowingLinks() {
 		return m, func() tea.Msg {
 			return StatusMsg{Text: "No links in current file"}

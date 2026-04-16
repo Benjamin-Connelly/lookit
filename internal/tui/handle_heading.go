@@ -12,19 +12,19 @@ import (
 func (m *Model) handleHeadingJumpKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "esc":
-		m.headingJump = false
+		m.mode = modeNormal
 		m.status.SetMode(m.modeString())
 		return m, nil
 	case "enter":
 		filtered := m.filterHeadingJump()
 		if m.headingJumpCur >= 0 && m.headingJumpCur < len(filtered) {
 			entry := filtered[m.headingJumpCur]
-			m.headingJump = false
+			m.mode = modeNormal
 			m.status.SetMode(m.modeString())
 			m.pendingFragment = slugify(entry.Heading)
 			return m.navigateToPath(entry.File, 0)
 		}
-		m.headingJump = false
+		m.mode = modeNormal
 		m.status.SetMode(m.modeString())
 		return m, nil
 	case "up", "ctrl+p", "ctrl+k":
