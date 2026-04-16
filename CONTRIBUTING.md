@@ -1,4 +1,4 @@
-# Contributing to Lookit
+# Contributing to fur
 
 Thanks for your interest in contributing! Whether it's a bug fix, new feature, or documentation improvement, we appreciate the help.
 
@@ -6,39 +6,40 @@ Thanks for your interest in contributing! Whether it's a bug fix, new feature, o
 
 ```bash
 # Clone
-git clone https://github.com/Benjamin-Connelly/lookit.git
-cd lookit
+git clone https://github.com/Benjamin-Connelly/fur.git
+cd fur
 
-# Build (either works)
-make build
-go build -o lookit ./cmd/lookit
+# Build
+go build -o fur ./cmd/fur
 
 # Test
-make test
 go test ./...
 
 # Run
-./lookit .
+./fur .
 ```
 
 ## Requirements
 
-- Go 1.24+
+- Go 1.26+
 - No CGO dependencies
 
 ## Architecture
 
-- `cmd/lookit/main.go` — CLI entry point (Cobra commands)
+- `cmd/fur/main.go` — CLI entry point (Cobra commands)
 - `internal/tui/` — Bubble Tea TUI (split-pane, preview, keys, links, panels)
 - `internal/web/` — stdlib net/http server (Goldmark, SSE, go:embed)
+- `internal/mcp/` — MCP server for AI agent integration
 - `internal/index/` — File walker, fuzzy search, full-text search (Bleve), link graph, watcher
-- `internal/render/` — Glamour (TUI) and Chroma (syntax) wrappers, heading extraction
+- `internal/render/` — Glamour (TUI) and Chroma (syntax) wrappers, heading extraction, image protocols
 - `internal/git/` — go-git integration, permalink generation
+- `internal/remote/` — SSH/SFTP remote file browsing
 - `internal/config/` — Viper config loader, per-project config discovery
-- `internal/export/` — Markdown to HTML export
+- `internal/export/` — Markdown to HTML/PDF export
 - `internal/doctor/` — Environment diagnostics
 - `internal/plugin/` — YAML hook system
 - `internal/tasks/` — TODO extraction
+- `internal/manpages/` — Embedded man page installer
 
 ## Guidelines
 
@@ -52,7 +53,7 @@ go test ./...
 ## Testing
 
 ```bash
-go test ./...          # Run all tests (122 tests across 8 packages)
+go test ./...          # Run all tests (560 tests across 14 packages)
 go test -race ./...    # Race detector
 go vet ./...           # Static analysis
 ```
