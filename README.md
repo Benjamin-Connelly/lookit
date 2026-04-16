@@ -10,17 +10,16 @@ Zero config. TUI and web modes. Full-text search. Syntax highlighting for 50+ la
 ## Install
 
 ```bash
-# Quick install (no dependencies required)
-curl -sSL https://raw.githubusercontent.com/Benjamin-Connelly/lookit/master/install.sh | sh
-
-# Or specify install directory and version
-curl -sSL https://raw.githubusercontent.com/Benjamin-Connelly/lookit/master/install.sh | sh -s -- --dir /usr/local/bin
-
 # From source (requires Go 1.26+)
-go install github.com/Benjamin-Connelly/lookit/cmd/fur@latest
+go install github.com/Benjamin-Connelly/fur/cmd/fur@latest
+
+# Or clone and build
+git clone https://github.com/Benjamin-Connelly/fur.git
+cd fur
+go build -o fur ./cmd/fur
 ```
 
-Pre-built binaries available for linux/darwin on amd64/arm64. Pure Go, no CGO.
+Pure Go, no CGO. Cross-compiles to linux/darwin on amd64/arm64.
 
 ## Quick Start
 
@@ -312,7 +311,7 @@ Environment variables: `LOOKIT_THEME`, `LOOKIT_SERVER_PORT`, etc.
 ## Development
 
 ```bash
-git clone https://github.com/Benjamin-Connelly/lookit.git
+git clone https://github.com/Benjamin-Connelly/fur.git
 cd fur
 
 make build                            # Build binary
