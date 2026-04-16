@@ -4,12 +4,16 @@
 
 Zero config. TUI and web modes. Full-text search. Syntax highlighting for 50+ languages. Git-aware. Broken link detection. Backlinks. Interactive link graph.
 
-<!-- ## Screenshots -->
-<!-- TODO: Add terminal screenshots -->
+## Demo
+
+![fur demo](demo/fur-demo.gif)
 
 ## Install
 
 ```bash
+# Homebrew (macOS/Linux)
+brew install Benjamin-Connelly/fur/fur
+
 # From source (requires Go 1.26+)
 go install github.com/Benjamin-Connelly/fur/cmd/fur@latest
 
@@ -17,6 +21,9 @@ go install github.com/Benjamin-Connelly/fur/cmd/fur@latest
 git clone https://github.com/Benjamin-Connelly/fur.git
 cd fur
 go build -o fur ./cmd/fur
+
+# Nix
+nix run github:Benjamin-Connelly/fur
 ```
 
 Pure Go, no CGO. Cross-compiles to linux/darwin on amd64/arm64.
