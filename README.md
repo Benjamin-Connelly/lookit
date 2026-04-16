@@ -1,4 +1,4 @@
-# lookit
+# fur
 
 **Dual-mode markdown navigator with inter-document link navigation.**
 
@@ -17,7 +17,7 @@ curl -sSL https://raw.githubusercontent.com/Benjamin-Connelly/lookit/master/inst
 curl -sSL https://raw.githubusercontent.com/Benjamin-Connelly/lookit/master/install.sh | sh -s -- --dir /usr/local/bin
 
 # From source (requires Go 1.26+)
-go install github.com/Benjamin-Connelly/lookit/cmd/lookit@latest
+go install github.com/Benjamin-Connelly/lookit/cmd/fur@latest
 ```
 
 Pre-built binaries available for linux/darwin on amd64/arm64. Pure Go, no CGO.
@@ -25,19 +25,19 @@ Pre-built binaries available for linux/darwin on amd64/arm64. Pure Go, no CGO.
 ## Quick Start
 
 ```bash
-lookit                          # TUI mode — browse current directory
-lookit ~/docs                   # TUI mode — browse specific directory
-lookit myhost:~/docs            # SSH remote — browse files on a remote host
-lookit serve                    # Web mode — localhost:7777
-lookit serve --port 3000 --open # Web mode — custom port, auto-open browser
-lookit cat README.md            # Render markdown to terminal
-lookit export --format html     # Export all markdown to standalone HTML
-lookit doctor                   # Environment diagnostics
+fur                          # TUI mode — browse current directory
+fur ~/docs                   # TUI mode — browse specific directory
+fur myhost:~/docs            # SSH remote — browse files on a remote host
+fur serve                    # Web mode — localhost:7777
+fur serve --port 3000 --open # Web mode — custom port, auto-open browser
+fur cat README.md            # Render markdown to terminal
+fur export --format html     # Export all markdown to standalone HTML
+fur doctor                   # Environment diagnostics
 ```
 
-## Why lookit?
+## Why fur?
 
-| Feature | `glow` | `mdcat` | `frogmouth` | **lookit** |
+| Feature | `glow` | `mdcat` | `frogmouth` | **fur** |
 |---------|:------:|:-------:|:-----------:|:----------:|
 | TUI file browser | Stash only | No | Single-pane | **Split-pane tree + preview** |
 | SSH remote browsing | No | No | No | **`host:/path` — browse remote docs** |
@@ -74,7 +74,7 @@ Split-pane layout: collapsible file tree (left) + rendered preview (right). Side
 - **Keybinding presets** — default, vim, emacs
 - **Themes** — light, dark, auto, ascii (no color); Ctrl+T cycles at runtime
 - **Recent files** — persistent history across sessions
-- **Stdin pipe** — `echo '# Hello' | lookit` renders piped markdown
+- **Stdin pipe** — `echo '# Hello' | fur` renders piped markdown
 - **Mouse** — wheel scrolling (enable with `mouse: true` in config)
 
 ### Web Mode
@@ -100,16 +100,16 @@ Lightweight HTTP server with live reload.
 Browse files on remote hosts over SSH — no installation required on the remote machine.
 
 ```bash
-lookit myhost:~/docs                # SSH config alias with ~ expansion
-lookit user@192.168.1.50:/var/docs  # Explicit user and IP
-lookit --remote myhost ~/docs       # Flag-style alternative
-lookit @docs                        # Named remote from config
+fur myhost:~/docs                # SSH config alias with ~ expansion
+fur user@192.168.1.50:/var/docs  # Explicit user and IP
+fur --remote myhost ~/docs       # Flag-style alternative
+fur @docs                        # Named remote from config
 ```
 
 - **Zero remote setup** — uses SFTP, nothing to install on the server
 - **SSH config support** — respects `~/.ssh/config` (Host aliases, Hostname, User, Port, IdentityFile)
 - **Auth chain** — ssh-agent → key files → SSH config (TOFU for unknown host keys)
-- **Sync/cache model** — files cached locally at `~/.cache/lookit/remote/`, polled every 15s for changes
+- **Sync/cache model** — files cached locally at `~/.cache/fur/remote/`, polled every 15s for changes
 - **Status bar** — shows connection state (Connected/Reconnecting/Disconnected) and last sync time
 - **Auto-reconnect** — exponential backoff on connection loss
 - **Named remotes** — configure aliases in `config.yaml`:
@@ -128,13 +128,44 @@ lookit @docs                        # Named remote from config
 - **Broken link detection** — identifies links to nonexistent files and invalid `#heading` anchors
 - **File watcher** — fsnotify with 100ms debounce, auto-rebuilds file and search indexes
 - **Git integration** — go-git for status, branches, log, permalinks (GitHub/GitLab/Bitbucket/Gitea/Codeberg)
-- **Per-project config** — `.lookit.toml` / `.lookit.yaml` discovered by walking up from CWD
+- **Per-project config** — `.fur.toml` / `.fur.yaml` discovered by walking up from CWD
 - **Plugin hooks** — YAML-defined hooks for content transformation (prepend/append/replace)
 - **Task extraction** — finds TODOs with priority (`!high`), tags (`#tag`), due dates (`@due(...)`)
 - **Export** — markdown to standalone HTML or PDF with embedded CSS and syntax highlighting
-- **Graph export** — `lookit graph` outputs DOT format for Graphviz visualization
+- **Graph export** — `fur graph` outputs DOT format for Graphviz visualization
 - **Doctor** — 9 environment checks with colored output
-- **Man pages** — `lookit gen-man` generates troff man pages
+- **Man pages** — `fur gen-man` generates troff man pages
+
+### MCP Server
+
+fur exposes its documentation index as an [MCP](https://modelcontextprotocol.io/) server for AI agents.
+
+```bash
+fur mcp ~/docs     # Start MCP server on stdin/stdout
+```
+
+**Tools:**
+
+| Tool | Description |
+|------|-------------|
+| `search_docs` | Fuzzy filename or Bleve fulltext search |
+| `get_document` | Read file content (with size guard and binary detection) |
+| `get_related_docs` | Forward links, backlinks, or both for a file |
+| `check_doc_health` | Broken links, broken anchors, and pending tasks |
+| `get_doc_structure` | Heading tree with anchor slugs and line numbers |
+
+**Claude Code configuration** (`.claude/settings.json`):
+
+```json
+{
+  "mcpServers": {
+    "fur": {
+      "command": "fur",
+      "args": ["mcp", "."]
+    }
+  }
+}
+```
 
 ## Keybindings
 
@@ -213,34 +244,34 @@ lookit @docs                        # Named remote from config
 ## Commands
 
 ```
-lookit [path]                    # TUI mode (default)
-lookit host:/path                # SSH remote (SCP-style)
-lookit @alias                    # Named remote from config
+fur [path]                    # TUI mode (default)
+fur host:/path                # SSH remote (SCP-style)
+fur @alias                    # Named remote from config
   --remote <host>                # Remote host (SSH config alias or user@host)
   --remote-port <port>           # Remote SSH port
   --keymap vim|emacs|default     # Keybinding preset
   --theme dark|light|auto|ascii  # Color theme
   --no-color                     # Alias for --theme ascii
   --version, -V                  # Print version
-lookit serve [path]              # Web server
+fur serve [path]              # Web server
   --port, -p <port>              # Server port (default: 7777)
   --open                         # Open browser after starting
   --no-https                     # Disable HTTPS
   --css <path>                   # Custom CSS file
-lookit cat <file>                # Render markdown or image to terminal
-lookit export [path]             # Export markdown to HTML
+fur cat <file>                # Render markdown or image to terminal
+fur export [path]             # Export markdown to HTML
   --format html|pdf              # Output format (PDF requires chromium or wkhtmltopdf)
   --output, -o <dir>             # Output directory
-lookit graph [path]              # Output link graph in DOT format
-lookit doctor                    # Environment diagnostics
-lookit completion [shell]        # Shell completions (bash/zsh/fish/powershell)
+fur graph [path]              # Output link graph in DOT format
+fur doctor                    # Environment diagnostics
+fur completion [shell]        # Shell completions (bash/zsh/fish/powershell)
   --install                      # Auto-install without prompts
-cat file.md | lookit             # Render piped markdown
+cat file.md | fur             # Render piped markdown
 ```
 
 ## Configuration
 
-Global config at `~/.config/lookit/config.yaml`:
+Global config at `~/.config/fur/config.yaml`:
 
 ```yaml
 theme: auto          # light, dark, auto, ascii
@@ -272,7 +303,7 @@ remotes:                # Named remote hosts for SSH browsing
     path: /home/deploy/docs
 ```
 
-**Per-project config:** Place `.lookit.toml` or `.lookit.yaml` in your project root. Lookit walks up from the current directory and merges the first one found over the global config.
+**Per-project config:** Place `.fur.toml` or `.fur.yaml` in your project root. fur walks up from the current directory and merges the first one found over the global config.
 
 CLI flags override config: `--theme dark`, `--keymap vim`, `-c /path/to/config.yaml`.
 
@@ -282,7 +313,7 @@ Environment variables: `LOOKIT_THEME`, `LOOKIT_SERVER_PORT`, etc.
 
 ```bash
 git clone https://github.com/Benjamin-Connelly/lookit.git
-cd lookit
+cd fur
 
 make build                            # Build binary
 make test                             # Run tests
@@ -290,12 +321,12 @@ make man                              # Generate man pages
 go vet ./...                          # Lint
 
 # Or without make:
-go build -o lookit ./cmd/lookit
+go build -o fur ./cmd/fur
 go test ./...
 
 # Cross-compile
-GOOS=darwin GOARCH=arm64 CGO_ENABLED=0 go build -o lookit-darwin-arm64 ./cmd/lookit
-GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -o lookit-linux-arm64 ./cmd/lookit
+GOOS=darwin GOARCH=arm64 CGO_ENABLED=0 go build -o fur-darwin-arm64 ./cmd/fur
+GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -o fur-linux-arm64 ./cmd/fur
 ```
 
 Requires Go 1.26+. Pure Go, no CGO.
@@ -330,7 +361,7 @@ Lookit exists because generous people write extraordinary software and give it a
 - [go-git](https://github.com/go-git/go-git) — a complete Git implementation in pure Go — no shelling out, no CGO, just works
 
 **CLI & Config**
-- [Cobra](https://github.com/spf13/cobra) — the CLI framework that powers kubectl, hugo, and now lookit
+- [Cobra](https://github.com/spf13/cobra) — the CLI framework that powers kubectl, hugo, and now fur
 - [Viper](https://github.com/spf13/viper) — effortless config from files, env vars, and flags
 
 **Visualization**
