@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
-	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
@@ -98,15 +97,8 @@ func (s *Server) handleRoot(w http.ResponseWriter, r *http.Request) {
 
 	// Verify resolved path stays within the served root
 	if relPath != "." {
-		absPath := filepath.Join(s.idx.Root(), relPath)
-		resolved, err := filepath.EvalSymlinks(absPath)
-		if err != nil {
+		if _, err := s.idx.ValidatePath(relPath); err != nil {
 			http.NotFound(w, r)
-			return
-		}
-		rootPrefix := s.idx.Root() + string(os.PathSeparator)
-		if !strings.HasPrefix(resolved, rootPrefix) && resolved != s.idx.Root() {
-			http.Error(w, "Forbidden", http.StatusForbidden)
 			return
 		}
 	}

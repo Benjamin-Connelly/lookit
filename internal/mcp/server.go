@@ -111,22 +111,8 @@ func (s *Server) registerTools() {
 	)
 }
 
-// validatePath checks that the resolved path stays within the index root.
-// Prevents symlink escapes and path traversal.
 func (s *Server) validatePath(relPath string) (string, error) {
-	if strings.Contains(relPath, "..") {
-		return "", fmt.Errorf("path traversal not allowed")
-	}
-	absPath := filepath.Join(s.idx.Root(), relPath)
-	resolved, err := filepath.EvalSymlinks(absPath)
-	if err != nil {
-		return "", fmt.Errorf("file not found")
-	}
-	root := s.idx.Root()
-	if !strings.HasPrefix(resolved, root+string(filepath.Separator)) && resolved != root {
-		return "", fmt.Errorf("path escapes index root")
-	}
-	return absPath, nil
+	return s.idx.ValidatePath(relPath)
 }
 
 // --- Tool Handlers ---

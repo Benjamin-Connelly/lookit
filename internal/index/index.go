@@ -2,6 +2,7 @@ package index
 
 import (
 	"bufio"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -255,6 +256,24 @@ func (idx *Index) Lookup(relPath string) *FileEntry {
 // Root returns the index root directory.
 func (idx *Index) Root() string {
 	return idx.root
+}
+
+// ValidatePath checks that relPath stays within the index root after symlink
+// resolution. Returns the absolute path on success. Rejects path traversal
+// (contains "..") and symlink escapes.
+func (idx *Index) ValidatePath(relPath string) (string, error) {
+	if strings.Contains(relPath, "..") {
+		return "", fmt.Errorf("path traversal not allowed")
+	}
+	absPath := filepath.Join(idx.root, relPath)
+	resolved, err := filepath.EvalSymlinks(absPath)
+	if err != nil {
+		return "", fmt.Errorf("file not found")
+	}
+	if !strings.HasPrefix(resolved, idx.root+string(filepath.Separator)) && resolved != idx.root {
+		return "", fmt.Errorf("path escapes index root")
+	}
+	return absPath, nil
 }
 
 // AddFile adds a single file entry to the index without walking.
