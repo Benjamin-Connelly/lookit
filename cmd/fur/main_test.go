@@ -70,13 +70,27 @@ func TestResolveRoot_DefaultConfig(t *testing.T) {
 	}
 }
 
-// stripManHeader removes the .TH line (contains version/date that change per
-// build) so we can compare content only.
-func stripManHeader(content string) string {
+// stripManVolatile removes the parts of a cobra-generated man page that
+// change between runs: the .TH line (version/date in the header) and the
+// .SH HISTORY section (generation date at the bottom). Everything else is
+// deterministic for a given command tree.
+func stripManVolatile(content string) string {
 	lines := strings.Split(content, "\n")
 	var out []string
+	inHistory := false
 	for _, line := range lines {
 		if strings.HasPrefix(line, ".TH ") {
+			continue
+		}
+		if strings.HasPrefix(line, ".SH HISTORY") {
+			inHistory = true
+			continue
+		}
+		if inHistory {
+			if strings.HasPrefix(line, ".SH ") {
+				inHistory = false
+				out = append(out, line)
+			}
 			continue
 		}
 		out = append(out, line)
@@ -123,35 +137,7 @@ func TestManPagesUpToDate(t *testing.T) {
 			continue
 		}
 
-		g, c := stripManHeader(string(generated)), stripManHeader(string(committed))
-		if g != c {
-			// Diagnostic: first differing byte + 80 chars of context each side.
-			n := len(g)
-			if len(c) < n {
-				n = len(c)
-			}
-			for i := 0; i < n; i++ {
-				if g[i] != c[i] {
-					start := i - 40
-					if start < 0 {
-						start = 0
-					}
-					end := i + 80
-					if end > len(g) {
-						end = len(g)
-					}
-					if end > len(c) {
-						end = len(c)
-					}
-					t.Logf("%s diverges at byte %d (len gen=%d com=%d)", entry.Name(), i, len(g), len(c))
-					t.Logf("  gen: %q", g[start:end])
-					t.Logf("  com: %q", c[start:end])
-					break
-				}
-			}
-			if len(g) != len(c) && strings.HasPrefix(g, c) {
-				t.Logf("%s: generated is a superset (extra %d bytes)", entry.Name(), len(g)-len(c))
-			}
+		if stripManVolatile(string(generated)) != stripManVolatile(string(committed)) {
 			t.Errorf("man page %s is stale — run: go run ./cmd/fur gen-man", entry.Name())
 		}
 	}
