@@ -75,7 +75,7 @@ func EmacsKeyMap() KeyMap {
 // Help returns a formatted help string showing all keybindings.
 func Help(km KeyMap) string {
 	var b strings.Builder
-	b.WriteString("Lookit - Key Bindings\n")
+	b.WriteString("fur - Key Bindings\n")
 	b.WriteString(strings.Repeat("=", 40) + "\n\n")
 
 	bindings := []key.Binding{

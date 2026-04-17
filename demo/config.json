@@ -1,0 +1,23 @@
+{
+  "name": "fur",
+  "version": "1.0.0",
+  "modes": ["tui", "web", "mcp"],
+  "features": {
+    "search": {
+      "filename": "sahilm/fuzzy",
+      "fulltext": "blevesearch/bleve"
+    },
+    "render": {
+      "tui": "charmbracelet/glamour",
+      "web": "yuin/goldmark"
+    },
+    "highlight": "alecthomas/chroma",
+    "git": "go-git/go-git"
+  },
+  "server": {
+    "port": 7777,
+    "host": "localhost",
+    "live_reload": true
+  },
+  "themes": ["auto", "light", "dark", "ascii"]
+}
