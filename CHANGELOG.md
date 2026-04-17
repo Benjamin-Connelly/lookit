@@ -1,5 +1,20 @@
 # Changelog
 
+## v1.0.1
+
+Maintenance release. CI drift cleanup, demo improvements, and one latent bug fix.
+
+### Fixed
+- `navigateToPath` now applies the `scroll` argument — history back and bookmark restore were silently losing scroll position
+- Help overlay header now reads `fur - Key Bindings` (was stuck on the old `Lookit` name)
+- `TestManPagesUpToDate` no longer compares cobra's non-deterministic `.SH HISTORY` date, so CI runs on a different calendar day than the last regen pass cleanly
+- CI workflows (`ci.yml`, `release.yml`) updated to build `./cmd/fur` and publish `fur-*` artifacts (were still referencing the pre-rename `lookit` paths)
+- gofmt drift across seven files
+- `errcheck`, `unparam`, and `staticcheck` findings from the accumulated lint backlog
+
+### Changed
+- Demo GIF rewritten as a captioned five-chapter walkthrough with a title card, explicit keybind labels, and an end card — previously showed only basic navigation
+
 ## v1.0.0
 
 Initial stable release of fur — a dual-mode markdown navigator with TUI and web interfaces.
