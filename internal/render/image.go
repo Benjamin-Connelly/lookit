@@ -50,7 +50,7 @@ func DetectImageProtocol() ImageProtocol {
 // Only safe outside alt-screen (e.g., `fur cat`), NOT inside Bubble Tea.
 // An optional afero.Fs can be provided; if nil, the OS filesystem is used.
 func RenderImageInline(path string, protocol ImageProtocol, fsys ...afero.Fs) (string, error) {
-	var fs afero.Fs = afero.NewOsFs()
+	fs := afero.NewOsFs()
 	if len(fsys) > 0 && fsys[0] != nil {
 		fs = fsys[0]
 	}

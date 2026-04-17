@@ -81,7 +81,7 @@ func (m *Model) loadPreview(entry index.FileEntry) (tea.Model, tea.Cmd) {
 			}
 			if plugins != nil {
 				ctx := &plugin.HookContext{Content: content, FilePath: entry.RelPath}
-				plugins.Run(plugin.HookBeforeRender, ctx)
+				_ = plugins.Run(plugin.HookBeforeRender, ctx)
 				content = ctx.Content
 			}
 			if mdRenderer != nil {
@@ -89,7 +89,7 @@ func (m *Model) loadPreview(entry index.FileEntry) (tea.Model, tea.Cmd) {
 				if renderErr == nil {
 					if plugins != nil {
 						ctx := &plugin.HookContext{Content: rendered, FilePath: entry.RelPath}
-						plugins.Run(plugin.HookAfterRender, ctx)
+						_ = plugins.Run(plugin.HookAfterRender, ctx)
 						rendered = ctx.Content
 					}
 					return previewWithSourceMsg{

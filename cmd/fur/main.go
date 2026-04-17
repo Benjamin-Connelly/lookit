@@ -129,11 +129,11 @@ TUI keybindings (press ? for full help):
 		}
 
 		idx := index.New(root)
-		plugins.Run(plugin.HookBeforeIndex, &plugin.HookContext{FilePath: root})
+		_ = plugins.Run(plugin.HookBeforeIndex, &plugin.HookContext{FilePath: root})
 		if err := idx.Build(); err != nil {
 			return fmt.Errorf("building index: %w", err)
 		}
-		plugins.Run(plugin.HookAfterIndex, &plugin.HookContext{FilePath: root})
+		_ = plugins.Run(plugin.HookAfterIndex, &plugin.HookContext{FilePath: root})
 
 		// Build fulltext search index
 		cacheDir, _ := os.UserCacheDir()
@@ -207,11 +207,11 @@ ETag caching, and skips auto-opening the browser when an SSH session is detected
 		}
 
 		idx := index.New(root)
-		plugins.Run(plugin.HookBeforeIndex, &plugin.HookContext{FilePath: root})
+		_ = plugins.Run(plugin.HookBeforeIndex, &plugin.HookContext{FilePath: root})
 		if err := idx.Build(); err != nil {
 			return fmt.Errorf("building index: %w", err)
 		}
-		plugins.Run(plugin.HookAfterIndex, &plugin.HookContext{FilePath: root})
+		_ = plugins.Run(plugin.HookAfterIndex, &plugin.HookContext{FilePath: root})
 
 		// Build fulltext search index
 		serveCacheDir, _ := os.UserCacheDir()

@@ -25,6 +25,10 @@ func (m *Model) navigateToPath(path string, scroll int) (tea.Model, tea.Cmd) {
 		}
 	}
 
+	// Preserve scroll position (history back, bookmarks). The preview model
+	// re-clamps after the new content loads.
+	m.preview.scroll = scroll
+
 	return m, func() tea.Msg {
 		return FileSelectedMsg{Entry: *entry}
 	}

@@ -251,7 +251,7 @@ func (s *Server) handleMarkdown(w http.ResponseWriter, r *http.Request, relPath 
 	sourceStr := string(source)
 	if s.plugins != nil {
 		ctx := &plugin.HookContext{Content: sourceStr, FilePath: relPath}
-		s.plugins.Run(plugin.HookBeforeRender, ctx)
+		_ = s.plugins.Run(plugin.HookBeforeRender, ctx)
 		sourceStr = ctx.Content
 	}
 
@@ -293,7 +293,7 @@ func (s *Server) handleMarkdown(w http.ResponseWriter, r *http.Request, relPath 
 	// Fire AfterRender hook on rendered HTML
 	if s.plugins != nil {
 		ctx := &plugin.HookContext{Content: rendered, FilePath: relPath}
-		s.plugins.Run(plugin.HookAfterRender, ctx)
+		_ = s.plugins.Run(plugin.HookAfterRender, ctx)
 		rendered = ctx.Content
 	}
 

@@ -293,7 +293,9 @@ func ConfigDir() (string, error) {
 	if _, err := os.Stat(legacyPath); err == nil {
 		if _, err := os.Stat(newPath); os.IsNotExist(err) {
 			fmt.Fprintf(os.Stderr, "note: migrating config from %s to %s\n", legacyPath, newPath)
-			os.Rename(legacyPath, newPath)
+			if err := os.Rename(legacyPath, newPath); err != nil {
+				fmt.Fprintf(os.Stderr, "warning: config migration failed: %v\n", err)
+			}
 		}
 	}
 	return newPath, nil

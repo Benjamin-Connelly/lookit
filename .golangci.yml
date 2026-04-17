@@ -106,3 +106,4 @@ linters:
     paths:
       - internal/web/static
       - internal/web/templates
+      - demo

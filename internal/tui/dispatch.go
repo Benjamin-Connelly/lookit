@@ -89,7 +89,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.showingHelp = false
 		if m.plugins != nil {
 			ctx := &plugin.HookContext{FilePath: msg.Entry.RelPath}
-			m.plugins.Run(plugin.HookOnNavigate, ctx)
+			_ = m.plugins.Run(plugin.HookOnNavigate, ctx)
 		}
 		if m.recentFiles != nil {
 			m.recentFiles.Add(msg.Entry.Path)
