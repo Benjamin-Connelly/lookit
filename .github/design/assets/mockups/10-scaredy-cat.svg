@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none" role="img" aria-labelledby="t d">
+  <title id="t">FUR — Scaredy Cat</title>
+  <desc id="d">Pilo-erect ink silhouette with parchment startled eyes. Sienna panic drops, oxblood tiny 'oh' mouth. Bindery palette.</desc>
+
+  <!-- Radiating fur spikes -->
+  <g fill="#1E1E1E">
+    <polygon points="32,20 30,2 36,18"/>
+    <polygon points="40,16 42,0 46,16"/>
+    <polygon points="50,12 50,-1 55,14"/>
+    <polygon points="60,16 64,0 66,18"/>
+    <polygon points="68,20 70,2 72,22"/>
+
+    <polygon points="16,32 2,28 20,38"/>
+    <polygon points="12,44 -2,44 16,50"/>
+    <polygon points="12,56 -2,58 16,62"/>
+    <polygon points="16,68 2,72 20,74"/>
+    <polygon points="22,80 10,88 28,80"/>
+
+    <polygon points="84,32 98,28 80,38"/>
+    <polygon points="88,44 102,44 84,50"/>
+    <polygon points="88,56 102,58 84,62"/>
+    <polygon points="84,68 98,72 80,74"/>
+    <polygon points="78,80 90,88 72,80"/>
+
+    <polygon points="34,82 30,96 38,82"/>
+    <polygon points="42,84 42,100 48,84"/>
+    <polygon points="52,84 52,100 58,84"/>
+    <polygon points="62,82 62,96 68,84"/>
+  </g>
+
+  <!-- Base head -->
+  <circle cx="50" cy="52" r="32" fill="#1E1E1E"/>
+
+  <!-- Ear triangles -->
+  <polygon points="22,30 28,8 40,34" fill="#1E1E1E"/>
+  <polygon points="78,30 72,8 60,34" fill="#1E1E1E"/>
+
+  <!-- Parchment startled eyes -->
+  <circle cx="38" cy="46" r="9" fill="#F5ECD9"/>
+  <circle cx="62" cy="46" r="9" fill="#F5ECD9"/>
+
+  <!-- Tiny ink pupils -->
+  <circle cx="38" cy="47" r="2.5" fill="#1E1E1E"/>
+  <circle cx="62" cy="47" r="2.5" fill="#1E1E1E"/>
+
+  <!-- Catch-light -->
+  <circle cx="39.5" cy="44.5" r="1.3" fill="#FFFFFF"/>
+  <circle cx="63.5" cy="44.5" r="1.3" fill="#FFFFFF"/>
+
+  <!-- Tiny oxblood 'oh' mouth -->
+  <ellipse cx="50" cy="70" rx="2.2" ry="3" fill="#8B2635"/>
+
+  <!-- Sienna panic sweat drops -->
+  <ellipse cx="26" cy="38" rx="1.5" ry="2.5" fill="#A84A1F"/>
+  <ellipse cx="74" cy="38" rx="1.5" ry="2.5" fill="#A84A1F"/>
+</svg>

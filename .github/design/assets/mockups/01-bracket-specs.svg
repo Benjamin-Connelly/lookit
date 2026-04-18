@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none" role="img" aria-labelledby="t d">
+  <title id="t">FUR — Bracket Specs</title>
+  <desc id="d">Refined: stoic feline head with terminal-bracket reading glasses, integrated ear silhouette, narrowed muzzle.</desc>
+
+  <!-- Integrated head + ears silhouette (single path) -->
+  <path d="
+    M 18 40
+    L 22 10
+    L 38 34
+    L 62 34
+    L 78 10
+    L 82 40
+    Q 88 44 88 54
+    L 88 78
+    Q 88 88 78 90
+    L 22 90
+    Q 12 88 12 78
+    L 12 54
+    Q 12 44 18 40 Z
+  " fill="#1E1E1E"/>
+
+  <!-- Inner ear accents -->
+  <path d="M 25 16 L 26 30 L 34 30 Z" fill="#FF5F87"/>
+  <path d="M 75 16 L 74 30 L 66 30 Z" fill="#B267E6"/>
+
+  <!-- Left lens: "[" -->
+  <rect x="19" y="48" width="26" height="22" fill="#FF5F87"/>
+  <rect x="19" y="48" width="5"  height="22" fill="#1E1E1E"/>
+  <rect x="19" y="48" width="26" height="2.5" fill="#1E1E1E"/>
+  <rect x="19" y="67.5" width="26" height="2.5" fill="#1E1E1E"/>
+  <rect x="43" y="48" width="2" height="22" fill="#1E1E1E"/>
+
+  <!-- Right lens: "]" -->
+  <rect x="55" y="48" width="26" height="22" fill="#B267E6"/>
+  <rect x="76" y="48" width="5"  height="22" fill="#1E1E1E"/>
+  <rect x="55" y="48" width="26" height="2.5" fill="#1E1E1E"/>
+  <rect x="55" y="67.5" width="26" height="2.5" fill="#1E1E1E"/>
+  <rect x="55" y="48" width="2"  height="22" fill="#1E1E1E"/>
+
+  <!-- Bridge -->
+  <rect x="45" y="56" width="10" height="3" fill="#1E1E1E"/>
+
+  <!-- Cursor eyes -->
+  <rect x="31.5" y="54" width="2" height="10" fill="#F5F5F5"/>
+  <rect x="66.5" y="54" width="2" height="10" fill="#F5F5F5"/>
+
+  <!-- Whiskers (subtle) -->
+  <rect x="4" y="72" width="10" height="1" fill="#1E1E1E" opacity="0.7"/>
+  <rect x="4" y="76" width="8"  height="1" fill="#1E1E1E" opacity="0.5"/>
+  <rect x="86" y="72" width="10" height="1" fill="#1E1E1E" opacity="0.7"/>
+  <rect x="88" y="76" width="8"  height="1" fill="#1E1E1E" opacity="0.5"/>
+
+  <!-- Nose -->
+  <polygon points="47,75 53,75 50,79" fill="#FF5F87"/>
+
+  <!-- Mouth: prompt ">_" -->
+  <polygon points="45,82 45,86 49,84" fill="#B267E6"/>
+  <rect x="51" y="85" width="4" height="1.5" fill="#B267E6"/>
+</svg>

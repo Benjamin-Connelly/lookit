@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none" role="img" aria-labelledby="t d">
+  <title id="t">FUR — Further Reading</title>
+  <desc id="d">Ginger tabby cat in brass reading glasses perched on a stack of three books. Warm bookish palette: oxblood, forest green, brass, parchment.</desc>
+
+  <!-- Book 1 (bottom, oxblood) -->
+  <rect x="8"  y="74" width="84" height="16" fill="#8B2635"/>
+  <rect x="8"  y="87" width="84" height="1.5" fill="#E8CF8D"/>
+  <rect x="18" y="78" width="38" height="1"   fill="#C9A961"/>
+  <rect x="18" y="82" width="28" height="1"   fill="#C9A961"/>
+
+  <!-- Book 2 (middle, forest green) -->
+  <rect x="12" y="58" width="76" height="16" fill="#2D5A3D"/>
+  <rect x="12" y="71" width="76" height="1.5" fill="#E8CF8D"/>
+  <rect x="22" y="62" width="32" height="1"   fill="#C9A961"/>
+  <rect x="22" y="66" width="26" height="1"   fill="#C9A961"/>
+
+  <!-- Book 3 (top, warm tan with forest-green text lines) -->
+  <rect x="18" y="42" width="64" height="16" fill="#D4A855"/>
+  <rect x="18" y="55" width="64" height="1.5" fill="#6B4F1D"/>
+  <rect x="26" y="46" width="28" height="1"   fill="#2D5A3D"/>
+  <rect x="26" y="50" width="22" height="1"   fill="#2D5A3D"/>
+
+  <!-- Oxblood bookmark ribbon dangling from top book -->
+  <rect x="74"    y="42" width="2.5" height="22" fill="#8B2635"/>
+  <polygon points="72,64 77,64 74.5,68" fill="#8B2635"/>
+
+  <!-- Cat head silhouette (ginger tabby) -->
+  <path d="
+    M 30 42
+    L 30 34
+    Q 30 30 34 30
+    L 38 18
+    L 44 32
+    L 56 32
+    L 62 18
+    L 66 30
+    Q 70 30 70 34
+    L 70 42
+    Z
+  " fill="#D97543"/>
+
+  <!-- Belly/muzzle (lighter ginger) -->
+  <path d="M 38 38 L 62 38 L 60 42 L 40 42 Z" fill="#F0D4A8"/>
+
+  <!-- Tabby stripe accents -->
+  <g stroke="#A84A1F" stroke-width="1.2" stroke-linecap="round" fill="none">
+    <path d="M 37 22 L 39 30"/>
+    <path d="M 41 26 L 42 32"/>
+    <path d="M 63 22 L 61 30"/>
+    <path d="M 59 26 L 58 32"/>
+  </g>
+
+  <!-- Inner ears (soft pink) -->
+  <polygon points="40,22 42,30 44,30" fill="#E8A8B8"/>
+  <polygon points="60,22 58,30 56,30" fill="#E8A8B8"/>
+
+  <!-- Brass round reading glasses -->
+  <circle cx="43" cy="38" r="4" fill="#F5ECD9"/>
+  <circle cx="57" cy="38" r="4" fill="#F5ECD9"/>
+  <circle cx="43" cy="38" r="4" fill="none" stroke="#C9A961" stroke-width="1.5"/>
+  <circle cx="57" cy="38" r="4" fill="none" stroke="#C9A961" stroke-width="1.5"/>
+  <line x1="47" y1="38" x2="53" y2="38" stroke="#C9A961" stroke-width="1.5"/>
+  <line x1="39.2" y1="38.3" x2="33" y2="36" stroke="#C9A961" stroke-width="1.2"/>
+  <line x1="60.8" y1="38.3" x2="67" y2="36" stroke="#C9A961" stroke-width="1.2"/>
+
+  <!-- Forest-green eyes with highlights -->
+  <circle cx="43" cy="38" r="1.5" fill="#2D5A3D"/>
+  <circle cx="57" cy="38" r="1.5" fill="#2D5A3D"/>
+  <circle cx="43.7" cy="37.3" r="0.5" fill="#F5ECD9"/>
+  <circle cx="57.7" cy="37.3" r="0.5" fill="#F5ECD9"/>
+
+  <!-- Oxblood nose -->
+  <polygon points="48,42 52,42 50,45" fill="#8B2635"/>
+</svg>

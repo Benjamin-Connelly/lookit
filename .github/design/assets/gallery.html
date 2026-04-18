@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>FUR — Logo × ASCII Gallery</title>
+<style>
+  :root {
+    --bg:      #0d0d12;
+    --panel:   #17171f;
+    --panel-2: #1f1f2a;
+    --border:  #2a2a38;
+    --text:    #d9dae2;
+    --muted:   #7a7a8a;
+    --pink:    #FF5F87;
+    --purple:  #B267E6;
+    --cream:   #F5ECD9;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { background: var(--bg); color: var(--text); }
+  body {
+    font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+    padding: 36px 40px 80px;
+    min-height: 100vh;
+  }
+  .titlebar {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 28px;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .titlebar .dots { display: flex; gap: 6px; }
+  .titlebar .dots span {
+    width: 11px; height: 11px; border-radius: 50%; display: inline-block;
+  }
+  .titlebar .dots .r { background: var(--pink); }
+  .titlebar .dots .y { background: var(--purple); }
+  .titlebar .dots .g { background: #4A4A5A; }
+  .titlebar .path { color: var(--cream); }
+  h1 {
+    color: var(--pink);
+    font-size: 30px;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    margin-bottom: 6px;
+  }
+  h1 .bar { color: var(--purple); }
+  .sub {
+    color: var(--muted);
+    font-size: 13px;
+    margin-bottom: 28px;
+    max-width: 680px;
+    line-height: 1.55;
+  }
+  .sub kbd {
+    font-family: ui-monospace, Menlo, monospace;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 1px 6px;
+    font-size: 11px;
+    color: var(--cream);
+  }
+  .sub a { color: var(--pink); text-decoration: none; }
+  .sub a:hover { text-decoration: underline; }
+  .section { margin-bottom: 40px; }
+  .section h2 {
+    font-family: ui-monospace, Menlo, monospace;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--purple);
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    margin-bottom: 14px;
+    padding: 6px 0 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  .section h2::before { content: "▌ "; color: var(--pink); }
+  .grid { display: grid; grid-template-columns: 1fr; gap: 18px; }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    gap: 0;
+  }
+  .svg-col {
+    background: var(--panel-2);
+    border-right: 1px solid var(--border);
+    padding: 20px 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+  }
+  .svg-col .large {
+    background: var(--cream);
+    border-radius: 8px;
+    padding: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .svg-col .large img { display: block; }
+  .svg-col .sizes {
+    display: flex;
+    align-items: flex-end;
+    gap: 10px;
+    background: var(--bg);
+    padding: 8px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+  }
+  .svg-col .sizes > div { text-align: center; }
+  .svg-col .sizes img { display: block; margin: 0 auto 3px; }
+  .svg-col .sizes .lbl { font-size: 9px; color: var(--muted); font-family: ui-monospace, Menlo, monospace; }
+  .body-col {
+    padding: 18px 22px;
+    display: flex;
+    flex-direction: column;
+  }
+  .body-col .head { margin-bottom: 10px; }
+  .body-col h3 {
+    color: var(--pink);
+    font-size: 14px;
+    font-weight: 700;
+    margin-bottom: 3px;
+  }
+  .body-col h3 .id {
+    color: var(--purple);
+    font-family: ui-monospace, Menlo, monospace;
+    font-size: 12px;
+    margin-right: 6px;
+  }
+  .body-col p {
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.5;
+    margin-bottom: 14px;
+  }
+  .ascii-label {
+    font-family: ui-monospace, Menlo, monospace;
+    font-size: 10px;
+    color: var(--purple);
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    margin-bottom: 6px;
+  }
+  .ascii-box {
+    background: #000;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 14px 16px;
+    overflow-x: auto;
+    flex: 1;
+  }
+  .ascii-box pre {
+    font-family: "JetBrains Mono", "Fira Code", "Cascadia Code", ui-monospace, Menlo, monospace;
+    font-size: 13px;
+    line-height: 1.0;
+    color: var(--cream);
+    white-space: pre;
+    letter-spacing: 0;
+  }
+  @media (max-width: 780px) {
+    .card { grid-template-columns: 1fr; }
+    .svg-col { border-right: none; border-bottom: 1px solid var(--border); }
+  }
+</style>
+</head>
+<body>
+
+<div class="titlebar">
+  <div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+  <span class="path">~/.github/design/assets/gallery.html</span>
+  <span style="margin-left: auto;" id="status">● live</span>
+</div>
+
+<h1>FUR <span class="bar">▌</span> Logo × ASCII Gallery</h1>
+<p class="sub">
+  Each SVG paired with an ASCII companion in the same spirit — not a literal raster conversion.
+  Open in a <kbd>monospace</kbd> window at least 60 columns wide.
+  Swap to the stock preview via <a href="preview.html">preview.html</a>.
+</p>
+
+<div id="content"></div>
+
+<script src="variants.js"></script>
+<script src="ascii.js"></script>
+<script>
+(function () {
+  var lastDataStr = '';
+
+  // Safe DOM helper: create element with props and children.
+  function el(tag, props, children) {
+    var node = document.createElement(tag);
+    if (props) {
+      Object.keys(props).forEach(function (key) {
+        if (key === 'class') node.className = props[key];
+        else if (key === 'text') node.textContent = props[key];
+        else if (key === 'style') node.setAttribute('style', props[key]);
+        else node.setAttribute(key, props[key]);
+      });
+    }
+    (children || []).forEach(function (c) {
+      if (c) node.appendChild(c);
+    });
+    return node;
+  }
+
+  function sizeBox(src, size) {
+    return el('div', null, [
+      el('img', { src: src, width: size, height: size }),
+      el('div', { class: 'lbl', text: String(size) })
+    ]);
+  }
+
+  function buildCard(v) {
+    var asciiData = (window.ASCII && window.ASCII[v.id]) || '(no ascii yet)';
+    var card = el('div', { class: 'card', 'data-id': v.id });
+
+    // SVG column
+    var svgCol = el('div', { class: 'svg-col' });
+    var large = el('div', { class: 'large' }, [
+      el('img', { src: v.light, width: 160, height: 160 })
+    ]);
+    var sizes = el('div', { class: 'sizes' }, [
+      sizeBox(v.light, 56),
+      sizeBox(v.light, 28),
+      sizeBox(v.light, 16)
+    ]);
+    svgCol.appendChild(large);
+    svgCol.appendChild(sizes);
+
+    // Body column
+    var bodyCol = el('div', { class: 'body-col' });
+    var head = el('div', { class: 'head' });
+    var h3 = el('h3');
+    h3.appendChild(el('span', { class: 'id', text: '#' + v.id }));
+    h3.appendChild(document.createTextNode(v.name));
+    head.appendChild(h3);
+    head.appendChild(el('p', { text: v.description || '' }));
+
+    var asciiLabel = el('div', { class: 'ascii-label', text: 'ascii companion' });
+    var asciiBox = el('div', { class: 'ascii-box' }, [
+      el('pre', { text: asciiData })
+    ]);
+
+    bodyCol.appendChild(head);
+    bodyCol.appendChild(asciiLabel);
+    bodyCol.appendChild(asciiBox);
+
+    card.appendChild(svgCol);
+    card.appendChild(bodyCol);
+    return card;
+  }
+
+  function render() {
+    var data = window.VARIANTS;
+    if (!data) return;
+    var key = JSON.stringify(data) + '|' + JSON.stringify(window.ASCII || {});
+    if (key === lastDataStr) return;
+    lastDataStr = key;
+
+    document.title = data.projectName + ' — Logo × ASCII Gallery';
+
+    var content = document.getElementById('content');
+    while (content.firstChild) content.removeChild(content.firstChild);
+
+    (data.concepts || []).forEach(function (c) {
+      var section = el('div', { class: 'section' });
+      section.appendChild(el('h2', { text: c.name }));
+      var grid = el('div', { class: 'grid' });
+      (c.variants || []).forEach(function (v) {
+        grid.appendChild(buildCard(v));
+      });
+      section.appendChild(grid);
+      content.appendChild(section);
+    });
+  }
+
+  render();
+
+  // Live reload every 3s
+  setInterval(function () {
+    var t = Date.now();
+    document.querySelectorAll('img[src*=".svg"]').forEach(function (img) {
+      var base = img.src.split('?')[0];
+      img.src = base + '?t=' + t;
+    });
+    ['variants.js', 'ascii.js'].forEach(function (src) {
+      var s = document.createElement('script');
+      s.src = src + '?t=' + t;
+      s.onload = function () { render(); s.remove(); };
+      s.onerror = function () { s.remove(); };
+      document.head.appendChild(s);
+    });
+  }, 3000);
+})();
+</script>
+</body>
+</html>

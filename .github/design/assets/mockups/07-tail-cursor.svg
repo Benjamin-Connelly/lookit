@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none" role="img" aria-labelledby="t d">
+  <title id="t">FUR — Tail Cursor</title>
+  <desc id="d">Minimal sitting cat whose tail curls up and becomes a terminal cursor block. Face reduced to two glowing eyes.</desc>
+
+  <!-- Cat silhouette: simplified sitting posture -->
+  <path d="
+    M 22 16 L 30 40 L 40 36 L 48 36 L 58 36 L 68 40 L 72 16
+    L 78 42 Q 84 46 84 54 L 84 82 L 62 84 L 60 80
+    L 40 80 L 38 84 L 16 82 L 16 54 Q 16 46 22 42 Z
+  " fill="#1E1E1E"/>
+
+  <!-- Tail: curls up and right, thick line -->
+  <path d="M 82 68 Q 96 66 94 46 Q 92 34 84 34"
+        stroke="#1E1E1E" stroke-width="6" stroke-linecap="round" fill="none"/>
+
+  <!-- Cursor block at tail tip (blinking cursor aesthetic) -->
+  <rect x="80" y="26" width="9" height="15" fill="#FF5F87"/>
+
+  <!-- Minimal face: two glowing almond eyes -->
+  <ellipse cx="40" cy="56" rx="2" ry="4.5" fill="#FF5F87"/>
+  <ellipse cx="60" cy="56" rx="2" ry="4.5" fill="#B267E6"/>
+
+  <!-- Tiny nose dot -->
+  <polygon points="48,68 52,68 50,71" fill="#F5F5F5" opacity="0.6"/>
+</svg>

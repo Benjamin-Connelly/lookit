@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none" role="img" aria-labelledby="t d">
+  <title id="t">FUR — Monocle Scholar</title>
+  <desc id="d">Victorian scholar cat: single circular monocle with dangling chain. Asymmetric composition, academic tone.</desc>
+
+  <!-- Head silhouette with integrated ears -->
+  <path d="
+    M 20 36
+    L 26 8 L 42 32
+    L 58 32 L 74 8 L 80 36
+    Q 90 42 90 56
+    Q 90 82 78 88
+    Q 50 94 22 88
+    Q 10 82 10 56
+    Q 10 42 20 36 Z
+  " fill="#1E1E1E"/>
+
+  <!-- Inner ears -->
+  <polygon points="28,15 32,30 38,30" fill="#FF5F87"/>
+  <polygon points="62,15 68,30 72,30" fill="#FF5F87"/>
+
+  <!-- Left eye — just a cursor slit (uncovered) -->
+  <rect x="31" y="50" width="2.5" height="11" fill="#F5F5F5"/>
+
+  <!-- Monocle: purple ring over right eye -->
+  <circle cx="64" cy="56" r="15" fill="#FF5F87" fill-opacity="0.22"/>
+  <circle cx="64" cy="56" r="15" fill="none" stroke="#B267E6" stroke-width="3.5"/>
+
+  <!-- Right eye (inside monocle) -->
+  <rect x="63" y="50" width="2.5" height="11" fill="#F5F5F5"/>
+
+  <!-- Dangling chain from monocle -->
+  <path d="M 79 60 Q 90 70 88 88" stroke="#B267E6" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+  <circle cx="79" cy="60" r="1.5" fill="#B267E6"/>
+  <circle cx="88" cy="88" r="1.5" fill="#B267E6"/>
+
+  <!-- Nose -->
+  <polygon points="47,72 53,72 50,76" fill="#FF5F87"/>
+
+  <!-- Subtle whiskers -->
+  <rect x="4" y="66" width="8" height="0.8" fill="#1E1E1E" opacity="0.6"/>
+  <rect x="4" y="72" width="6" height="0.8" fill="#1E1E1E" opacity="0.45"/>
+</svg>

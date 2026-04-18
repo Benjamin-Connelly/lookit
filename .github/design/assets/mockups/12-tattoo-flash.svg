@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none" role="img" aria-labelledby="t d">
+  <title id="t">FUR — Tattoo Flash</title>
+  <desc id="d">American traditional tattoo flash: bold 2.5pt black outlines, pink head, heart-shape nose, banner ribbon with FUR, stars. Classic Sailor Jerry vocabulary.</desc>
+
+  <!-- Head with thick black outline -->
+  <path d="M 25 32 L 30 8 L 44 30 L 56 30 L 70 8 L 75 32
+           Q 82 36 82 46 L 80 58 Q 80 70 60 70 L 40 70
+           Q 20 70 20 58 L 18 46 Q 18 36 25 32 Z"
+        fill="#FF5F87" stroke="#1E1E1E" stroke-width="2.5" stroke-linejoin="round"/>
+
+  <!-- Inner ears (black) -->
+  <polygon points="32,14 35,28 41,28" fill="#1E1E1E"/>
+  <polygon points="68,14 65,28 59,28" fill="#1E1E1E"/>
+
+  <!-- Bold round eyes -->
+  <circle cx="38" cy="42" r="5" fill="#F5ECD9" stroke="#1E1E1E" stroke-width="2"/>
+  <circle cx="62" cy="42" r="5" fill="#F5ECD9" stroke="#1E1E1E" stroke-width="2"/>
+  <rect x="37" y="38" width="2" height="9" fill="#1E1E1E"/>
+  <rect x="61" y="38" width="2" height="9" fill="#1E1E1E"/>
+
+  <!-- Heart-shape nose (tattoo staple) -->
+  <path d="M 50 58 C 47 54 43 55 44 59 L 50 64 L 56 59 C 57 55 53 54 50 58 Z"
+        fill="#1E1E1E"/>
+
+  <!-- Curved Y-shape mouth -->
+  <path d="M 50 64 L 50 66 M 45 66 Q 50 69 55 66"
+        stroke="#1E1E1E" stroke-width="2" fill="none" stroke-linecap="round"/>
+
+  <!-- Whiskers -->
+  <line x1="6" y1="50" x2="20" y2="54" stroke="#1E1E1E" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="6" y1="58" x2="20" y2="58" stroke="#1E1E1E" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="80" y1="54" x2="94" y2="50" stroke="#1E1E1E" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="80" y1="58" x2="94" y2="58" stroke="#1E1E1E" stroke-width="1.5" stroke-linecap="round"/>
+
+  <!-- Banner ribbon -->
+  <path d="M 8 76 L 18 72 L 18 76 L 82 76 L 82 72 L 92 76
+           L 88 90 L 80 85 L 80 94 L 20 94 L 20 85 L 12 90 Z"
+        fill="#B267E6" stroke="#1E1E1E" stroke-width="2" stroke-linejoin="round"/>
+
+  <!-- Banner inner fold shadows -->
+  <path d="M 18 72 L 22 80 L 18 76 Z" fill="#1E1E1E" opacity="0.35"/>
+  <path d="M 82 72 L 78 80 L 82 76 Z" fill="#1E1E1E" opacity="0.35"/>
+
+  <!-- FUR text -->
+  <text x="50" y="88" text-anchor="middle"
+        font-family="Impact, Haettenschweiler, 'Arial Black', sans-serif"
+        font-size="11" font-weight="900" fill="#F5ECD9" letter-spacing="2">FUR</text>
+
+  <!-- Corner stars -->
+  <polygon points="10,14 12,19 17,19 13,22 14,27 10,24 6,27 7,22 3,19 8,19"
+           fill="#B267E6" stroke="#1E1E1E" stroke-width="0.8" stroke-linejoin="round"/>
+  <polygon points="90,14 92,19 97,19 93,22 94,27 90,24 86,27 87,22 83,19 88,19"
+           fill="#B267E6" stroke="#1E1E1E" stroke-width="0.8" stroke-linejoin="round"/>
+</svg>

@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none" role="img" aria-labelledby="t d">
+  <title id="t">FUR — Calico Patchwork</title>
+  <desc id="d">Calico cat with asymmetric black and orange patches on a cream base. Lili Chin inspired — friendly, curious expression replaces the stoic stare.</desc>
+
+  <defs>
+    <clipPath id="calicoHead">
+      <path d="M 20 38 L 26 8 L 40 34 L 60 34 L 74 8 L 80 38 Q 88 42 88 54 L 88 78 Q 88 88 78 90 L 22 90 Q 12 88 12 78 L 12 54 Q 12 42 20 38 Z"/>
+    </clipPath>
+  </defs>
+
+  <!-- Cream base head -->
+  <path d="M 20 38 L 26 8 L 40 34 L 60 34 L 74 8 L 80 38 Q 88 42 88 54 L 88 78 Q 88 88 78 90 L 22 90 Q 12 88 12 78 L 12 54 Q 12 42 20 38 Z"
+        fill="#F5ECD9"/>
+
+  <!-- Black patches (clipped to head) -->
+  <g clip-path="url(#calicoHead)">
+    <path d="M 20 38 L 26 8 L 40 34 L 44 36 L 46 52 L 22 54 L 12 46 Z" fill="#1E1E1E"/>
+    <path d="M 58 78 L 82 74 L 88 90 L 62 92 Z" fill="#1E1E1E"/>
+    <path d="M 14 72 L 28 68 L 26 86 L 12 84 Z" fill="#1E1E1E"/>
+  </g>
+
+  <!-- Orange patches (clipped) -->
+  <g clip-path="url(#calicoHead)">
+    <path d="M 60 34 L 74 8 L 80 38 L 72 40 L 64 38 Z" fill="#E89B47"/>
+    <path d="M 50 46 L 82 46 L 86 66 L 52 66 Z" fill="#E89B47"/>
+    <path d="M 36 82 L 56 82 L 58 92 L 40 92 Z" fill="#E89B47"/>
+  </g>
+
+  <!-- Inner ears (pink) -->
+  <polygon points="29,16 32,30 37,30" fill="#FF5F87"/>
+  <polygon points="73,16 68,30 71,30" fill="#FF5F87"/>
+
+  <!-- Round friendly eyes -->
+  <circle cx="36" cy="52" r="4" fill="#F5ECD9"/>
+  <circle cx="64" cy="52" r="4" fill="#F5ECD9"/>
+  <circle cx="36" cy="53" r="2.2" fill="#1E1E1E"/>
+  <circle cx="64" cy="53" r="2.2" fill="#1E1E1E"/>
+  <circle cx="36.8" cy="51.6" r="0.7" fill="#F5ECD9"/>
+  <circle cx="64.8" cy="51.6" r="0.7" fill="#F5ECD9"/>
+
+  <!-- Pink nose -->
+  <polygon points="46,66 54,66 50,71" fill="#FF5F87"/>
+
+  <!-- Y-shaped curious mouth -->
+  <path d="M 50 71 L 50 76 M 44 76 Q 50 81 56 76"
+        stroke="#1E1E1E" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+</svg>

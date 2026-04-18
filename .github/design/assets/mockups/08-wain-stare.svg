@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none" role="img" aria-labelledby="t d">
+  <title id="t">FUR — Wain Stare</title>
+  <desc id="d">Louis Wain psychedelic homage: cream round face, concentric-ring hypnotic eyes, radial whiskers. Palette inverted — cream body, slate accents.</desc>
+
+  <!-- Round cream face -->
+  <circle cx="50" cy="52" r="40" fill="#F5F5F5"/>
+
+  <!-- Cream ears overlapping face -->
+  <polygon points="18,30 26,0 38,30" fill="#F5F5F5"/>
+  <polygon points="62,30 74,0 82,30" fill="#F5F5F5"/>
+
+  <!-- Inner ear accents -->
+  <polygon points="24,24 28,10 33,24" fill="#FF5F87"/>
+  <polygon points="67,24 72,10 76,24" fill="#B267E6"/>
+
+  <!-- Hypnotic left eye: 4 concentric rings -->
+  <circle cx="35" cy="50" r="11" fill="#1E1E1E"/>
+  <circle cx="35" cy="50" r="8"  fill="#FF5F87"/>
+  <circle cx="35" cy="50" r="5"  fill="#1E1E1E"/>
+  <circle cx="35" cy="50" r="2.2" fill="#F5F5F5"/>
+
+  <!-- Hypnotic right eye -->
+  <circle cx="65" cy="50" r="11" fill="#1E1E1E"/>
+  <circle cx="65" cy="50" r="8"  fill="#B267E6"/>
+  <circle cx="65" cy="50" r="5"  fill="#1E1E1E"/>
+  <circle cx="65" cy="50" r="2.2" fill="#F5F5F5"/>
+
+  <!-- Pink triangle nose -->
+  <polygon points="46,68 54,68 50,74" fill="#FF5F87"/>
+
+  <!-- Small curved mouth -->
+  <path d="M 44 78 Q 50 82 56 78" stroke="#1E1E1E" stroke-width="2" fill="none" stroke-linecap="round"/>
+
+  <!-- Radiating whiskers -->
+  <line x1="6" y1="60" x2="24" y2="62" stroke="#1E1E1E" stroke-width="1.2" stroke-linecap="round"/>
+  <line x1="4" y1="68" x2="22" y2="68" stroke="#1E1E1E" stroke-width="1.2" stroke-linecap="round"/>
+  <line x1="6" y1="76" x2="24" y2="74" stroke="#1E1E1E" stroke-width="1.2" stroke-linecap="round"/>
+  <line x1="76" y1="62" x2="94" y2="60" stroke="#1E1E1E" stroke-width="1.2" stroke-linecap="round"/>
+  <line x1="78" y1="68" x2="96" y2="68" stroke="#1E1E1E" stroke-width="1.2" stroke-linecap="round"/>
+  <line x1="76" y1="74" x2="94" y2="76" stroke="#1E1E1E" stroke-width="1.2" stroke-linecap="round"/>
+</svg>

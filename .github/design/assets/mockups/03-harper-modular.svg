@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none" role="img" aria-labelledby="t d">
+  <title id="t">FUR — Harper Modular</title>
+  <desc id="d">Mid-century 'minimal realism' in Bindery palette: oxblood ears, forest face, brass stripes on parchment page. Charley Harper geometry.</desc>
+
+  <!-- Parchment page -->
+  <rect width="100" height="100" fill="#F5ECD9"/>
+
+  <!-- Head: forest green inverted triangle -->
+  <polygon points="10,32 50,94 90,32" fill="#2D5A3D"/>
+
+  <!-- Ears (oxblood, overlapping top) -->
+  <polygon points="10,32 22,4 38,32" fill="#8B2635"/>
+  <polygon points="62,32 78,4 90,32" fill="#8B2635"/>
+
+  <!-- Inner ear accents (parchment, brighter than head) -->
+  <polygon points="18,22 25,10 30,26" fill="#F0D4A8"/>
+  <polygon points="70,22 75,10 82,26" fill="#F0D4A8"/>
+
+  <!-- Brass tabby stripes across forehead -->
+  <rect x="20" y="38" width="60" height="2.5" fill="#C9A961"/>
+  <rect x="26" y="44" width="48" height="2"   fill="#C9A961" opacity="0.8"/>
+
+  <!-- Eyes: parchment almonds with slit pupils -->
+  <ellipse cx="36" cy="56" rx="6.5" ry="8" fill="#F5ECD9"/>
+  <ellipse cx="64" cy="56" rx="6.5" ry="8" fill="#F5ECD9"/>
+  <rect x="35" y="50" width="2" height="12" fill="#1E1E1E"/>
+  <rect x="63" y="50" width="2" height="12" fill="#1E1E1E"/>
+
+  <!-- Oxblood triangular nose -->
+  <polygon points="45,72 55,72 50,79" fill="#8B2635"/>
+
+  <!-- Stoic brass cursor-line mouth -->
+  <rect x="44" y="83" width="12" height="2" fill="#C9A961"/>
+</svg>

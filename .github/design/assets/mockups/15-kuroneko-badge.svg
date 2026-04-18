@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none" role="img" aria-labelledby="t d">
+  <title id="t">FUR — Kuroneko Badge</title>
+  <desc id="d">Kuroneko Yamato homage: flat black cat silhouette walking left across a pink oval badge. Single yellow pinprick eye.</desc>
+
+  <!-- Pink rounded badge -->
+  <ellipse cx="50" cy="50" rx="46" ry="34" fill="#FF5F87"/>
+
+  <!-- Walking cat silhouette (facing left) -->
+  <path d="
+    M 14 56
+    L 18 54
+    L 20 48
+    L 22 52
+    L 28 38
+    L 32 50
+    L 36 40
+    L 40 52
+    L 54 52
+    L 54 44
+    L 56 34
+    L 60 28
+    L 64 30
+    L 62 40
+    L 60 48
+    L 66 52
+    L 74 50
+    L 74 58
+    L 78 58
+    L 78 74
+    L 74 74
+    L 74 64
+    L 66 64
+    L 66 74
+    L 62 74
+    L 62 60
+    L 42 60
+    L 42 74
+    L 38 74
+    L 38 62
+    L 30 62
+    L 30 74
+    L 26 74
+    L 26 60
+    L 20 60
+    Z
+  " fill="#1E1E1E"/>
+
+  <!-- Yellow eye -->
+  <circle cx="24" cy="52" r="1.4" fill="#F5E6CF"/>
+</svg>
